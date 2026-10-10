@@ -66,20 +66,42 @@ assert.equal(L.computeMove(config, "center", 9, "up"), null)
 assert.equal(L.computeMove(config, "nope", 0, "up"), null)
 assert.equal(L.computeMove(config, "center", 0, "sideways"), null)
 
+// to-<lane>: jump straight to a lane
+assert.deepEqual(L.computeMove(config, "left", 0, "to-right"),
+  { fromSection: "left", fromIndex: 0, section: "right", index: 1 })
+assert.deepEqual(L.computeMove(config, "right", 0, "to-left"),
+  { fromSection: "right", fromIndex: 0, section: "left", index: 2 })
+assert.equal(L.computeMove(config, "left", 0, "to-left"), null, "already in that lane")
+assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
+
+// collapsed lanes hide their widgets but keep the header and count
+{
+  const rows = L.buildRows(config, plugins, "x.deck", false, { center: true })
+  const header = rows.find(r => r.type === "header" && r.section === "center")
+  assert.equal(header.collapsed, true)
+  assert.equal(header.count, 2)
+  assert.equal(rows.filter(r => r.type === "widget" && r.section === "center").length, 0)
+  assert.equal(rows.filter(r => r.type === "widget" && r.section === "left").length, 2)
+  assert.equal(rows.filter(r => r.type === "available").length, 2, "collapsing a lane does not make its widgets available")
+  const closed = L.buildRows(config, plugins, "x.deck", false, { available: true })
+  assert.equal(closed.filter(r => r.type === "available").length, 0)
+  assert.equal(closed.find(r => r.section === "available").count, 2)
+}
+
 // findRow / stepCursor
 {
   const rows = L.buildRows(config, plugins, "x.deck", false)
   const at = L.findRow(rows, { section: "center", index: 1 })
   assert.equal(rows[at].id, "x.radar")
   assert.equal(L.findRow(rows, { id: "a.spare" }) > at, true)
+  assert.equal(L.findRow(rows, { id: "x.radar" }), at, "a widget is found by id too")
   assert.equal(L.findRow(rows, null), -1)
-  const first = L.stepCursor(rows, -1, 1)
-  assert.equal(rows[first].type, "widget")
-  assert.equal(L.stepCursor(rows, first, -1), first, "cannot step above the first row")
+  assert.equal(L.stepCursor(rows, -1, 1), 0, "the first stop is the first header")
+  assert.equal(rows[L.stepCursor(rows, -1, 1)].type, "header")
+  assert.equal(L.stepCursor(rows, 0, -1), 0, "cannot step above the first row")
   const last = rows.length - 1
   assert.equal(L.stepCursor(rows, last, 1), last)
-  const afterLastBar = L.findRow(rows, { section: "right", index: 0 })
-  assert.equal(rows[L.stepCursor(rows, afterLastBar, 1)].type, "available", "skips headers")
+  assert.equal(L.stepCursor(rows, 3, 1), 4)
 }
 
 assert.deepEqual(L.parseJson("{bad", []), [])

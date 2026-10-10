@@ -21,14 +21,18 @@
 
 Omaseiton is a bar widget for the [Omarchy](https://omarchy.org) shell. Click its icon and a dropdown lists every widget on your bar, split into **Left**, **Center** and **Right** lanes, followed by the bar widgets you have installed but switched off.
 
-> Screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
+<p align="center">
+  <img src="docs/panel.png" alt="The Omaseiton dropdown: widgets in Left, Center and Right lanes, each with L C R lane buttons" width="480">
+</p>
+
+More screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 
 | | |
 |---|---|
-| **Lanes at a glance** | Every widget on the bar, in order, with its plugin id and whether it is built in, a plugin or a clone. |
-| **Reorder** | Move a widget earlier or later in its lane. |
-| **Change lane** | Send a widget to the neighbouring lane in one click. |
-| **Toggle** | Switch a widget off the bar, or switch an available one back on. |
+| **A small tree** | Each lane is a foldable node with its widgets nested underneath, in bar order, with the plugin id and whether it is built in, a plugin or a clone. |
+| **Change lane** | Every row has **L C R** buttons (**S C E** on a vertical bar). The current lane is filled in; click another to move the widget there. |
+| **Reorder** | Highlight a row and use its **▲ ▼** buttons to move it earlier or later inside its lane. |
+| **Toggle** | Switch a widget off the bar, or switch an available one on. In the Available list the **L C R** buttons switch it on in that lane. |
 | **Native look** | Built from Omarchy's own UI components and theme colours, so it follows `omarchy theme set` automatically. |
 | **Keyboard first** | `j`/`k` move the cursor, `h`/`l` change lane, `Shift+J`/`Shift+K` reorder, `Space` toggles, `Esc` closes. |
 | **Plugin shortcuts** | Browse the [Omarchy marketplace](https://plugins.omarchy.org), add a plugin from a git URL, update your git plugins, or reset the layout. |
@@ -53,10 +57,11 @@ omarchy plugin remove pclements.omaseiton
 
 | Key | Action |
 |---|---|
-| `j` / `k` or `↓` / `↑` | Move the cursor |
-| `h` / `l` or `←` / `→` | Move the selected widget to the previous or next lane |
-| `Shift+K` / `Shift+J` | Move the selected widget earlier or later in its lane |
-| `Space` / `Enter` | Switch the selected widget off (or on, in the Available list) |
+| `j` / `k` or `↓` / `↑` | Move the highlight |
+| `1` / `2` / `3` | Send the highlighted widget to the left / center / right lane |
+| `h` / `l` or `←` / `→` | On a widget: move it to the previous or next lane. On a lane: fold or unfold it |
+| `Shift+K` / `Shift+J` | Move the highlighted widget earlier or later in its lane |
+| `Space` / `Enter` | On a widget: switch it off (or on, in Available). On a lane: fold or unfold it |
 | `Esc` | Close |
 
 ## How it works, and what it touches
@@ -75,6 +80,7 @@ Things worth knowing:
 
 - **Switching a widget off removes its entry from the layout**, including inline settings such as the clock format. Omarchy does this, not Omaseiton. Switching it back on gives you the defaults.
 - **The bar rebuilds after every change.** Omaseiton leaves a small marker file in `~/.local/state/omaseiton/` so the new instance reopens the dropdown. The marker is deleted straight away.
+- **Folded lanes are remembered** in `~/.local/state/omaseiton/collapsed.json`. The Available list starts folded.
 - Omaseiton will not offer to switch itself off.
 - It does not use `sudo`, `systemctl`, the network, or bundled binaries.
 

@@ -5,11 +5,15 @@ import qs.Ui
 import qs.Commons
 import "Layout.js" as Layout
 
-// The Omaseiton dropdown: every bar widget grouped by lane, with reorder,
-// lane-jump and on/off controls, plus shortcuts to the plugin ecosystem.
+// The Omaseiton dropdown: a small tree. Each lane (Left / Center / Right) is a
+// collapsible parent and the bar widgets sit underneath it in bar order.
 //
-// All changes go through the shell's own IPC (the same calls `omarchy bar`
-// and `omarchy plugin` make), one at a time. Omaseiton never writes shell.json.
+// On a row, the L / C / R buttons say which lane the widget is in (the current
+// one is filled) and move it to another lane with one click. The up / down
+// arrows reorder inside the lane and appear on the highlighted row.
+//
+// All changes go through the shell's own IPC (the same calls `omarchy bar` and
+// `omarchy plugin` make), one at a time. Omaseiton never writes shell.json.
 Item {
   id: root
 
@@ -24,10 +28,13 @@ Item {
   readonly property color fg: Color.popups.text
   readonly property color dim: Qt.darker(fg, 1.55)
   readonly property bool vertical: bar ? bar.vertical : false
+  readonly property var laneKeys: ["left", "center", "right"]
+  readonly property var laneLetters: vertical ? ["S", "C", "E"] : ["L", "C", "R"]
 
   property var config: ({})
   property var plugins: []
-  property var rows: Layout.buildRows(config, plugins, selfId, vertical)
+  property var collapsed: ({ available: true })
+  property var rows: Layout.buildRows(config, plugins, selfId, vertical, collapsed)
   property int cursor: -1
   property var cursorTarget: null
   property bool resetArmed: false
@@ -35,13 +42,12 @@ Item {
 
   readonly property int onBarCount: {
     var n = 0
-    for (var i = 0; i < rows.length; i++) if (rows[i].type === "widget") n++
+    for (var i = 0; i < rows.length; i++) if (rows[i].type === "header" && rows[i].section !== "available") n += rows[i].count
     return n
   }
   readonly property int availableCount: {
-    var n = 0
-    for (var i = 0; i < rows.length; i++) if (rows[i].type === "available") n++
-    return n
+    for (var i = 0; i < rows.length; i++) if (rows[i].type === "header" && rows[i].section === "available") return rows[i].count
+    return 0
   }
 
   // ------------------------------------------------------------- state
@@ -75,17 +81,45 @@ Item {
     }
   }
 
+  // Which lanes are collapsed survives the bar rebuilding after every change
+  // (and closing the dropdown), so it lives in a small state file.
+  Process {
+    id: collapsedLoad
+    command: ["cat", root.stateDir + "/collapsed.json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var saved = Layout.parseJson(text, {})
+        if (saved && typeof saved === "object") root.collapsed = saved
+      }
+    }
+  }
+
+  function setCollapsed(section, value) {
+    var next = JSON.parse(JSON.stringify(collapsed || {}))
+    next[section] = value
+    collapsed = next
+    Quickshell.execDetached(["sh", "-c", 'mkdir -p "$1" && printf %s "$2" > "$1/collapsed.json"',
+      "sh", stateDir, JSON.stringify(next)])
+  }
+
+  function toggleCollapse(section) {
+    setCollapsed(section, !(collapsed && collapsed[section]))
+  }
+
   // After a refresh, put the cursor back on the row the user just acted on.
   function settleCursor() {
     var at = Layout.findRow(rows, cursorTarget)
     if (at >= 0) cursor = at
-    else if (cursor < 0 || cursor >= rows.length || rows[cursor].type === "header")
-      cursor = Layout.stepCursor(rows, -1, 1)
+    else if (cursor < 0 || cursor >= rows.length) cursor = Layout.stepCursor(rows, -1, 1)
     if (cursor >= 0 && cursor < rows.length && list.count > 0)
       list.positionViewAtIndex(cursor, ListView.Contain)
   }
 
-  Component.onCompleted: refresh()
+  Component.onCompleted: {
+    collapsedLoad.running = true
+    refresh()
+  }
 
   // ------------------------------------------------------------- commands
 
@@ -133,8 +167,23 @@ Item {
   function moveRow(row, action) {
     var placement = Layout.computeMove(config, row.section, row.index, action)
     if (!placement) return
-    cursorTarget = { section: placement.section, index: placement.index }
+    // Never move a widget into a lane the user cannot see it land in.
+    if (collapsed && collapsed[placement.section]) setCollapsed(placement.section, false)
+    cursorTarget = { id: row.id }
     shellCall("moveBarWidget", [row.id, JSON.stringify(placement)])
+  }
+
+  // Pressing a lane button: move a bar widget there, or switch an available
+  // one on in that lane.
+  function sendToLane(row, laneIndex) {
+    var lane = laneKeys[laneIndex]
+    if (row.type === "available") {
+      if (collapsed && collapsed[lane]) setCollapsed(lane, false)
+      cursorTarget = { id: row.id }
+      shellCall("enablePlugin", [row.id, JSON.stringify({ section: lane })])
+    } else if (row.type === "widget") {
+      moveRow(row, "to-" + lane)
+    }
   }
 
   function toggleRow(row) {
@@ -170,10 +219,56 @@ Item {
     onTriggered: root.resetArmed = false
   }
 
+  // ------------------------------------------------------------- pieces
+
+  // A small square button: a lane letter or an arrow. `current` fills it.
+  component Chip: Item {
+    id: chip
+    property string label: ""
+    property bool current: false
+    property bool dimmed: false
+    property bool shown: true
+    signal clicked()
+
+    implicitWidth: Style.space(22)
+    implicitHeight: Style.space(22)
+    width: implicitWidth
+    height: implicitHeight
+    opacity: !shown ? 0 : (dimmed ? 0.3 : 1)
+
+    Rectangle {
+      anchors.fill: parent
+      radius: Style.cornerRadius
+      color: chip.current
+        ? Style.selectedFillFor(root.fg, Color.accent)
+        : (chipMouse.containsMouse && chip.enabled ? Style.hoverFillFor(root.fg, Color.accent) : "transparent")
+      border.width: chip.current ? 1 : 0
+      border.color: Color.accent
+      Behavior on color { ColorAnimation { duration: 60 } }
+    }
+    Text {
+      anchors.centerIn: parent
+      text: chip.label
+      textFormat: Text.PlainText
+      color: chip.current ? Color.accent : root.fg
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      font.bold: chip.current
+    }
+    MouseArea {
+      id: chipMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      enabled: chip.enabled
+      onClicked: chip.clicked()
+    }
+  }
+
   // ------------------------------------------------------------- layout
 
   readonly property int rowHeight: Style.spacing.popupRowHeight + Style.space(6)
-  readonly property int headerHeight: Style.space(26)
+  readonly property int headerHeight: Style.space(28)
+  readonly property int indent: Style.space(14)
 
   PanelKeyCatcher {
     id: keys
@@ -186,17 +281,22 @@ Item {
         return
       }
       var row = root.rows[root.cursor]
-      if (row && row.type === "widget") root.moveRow(row, dx < 0 ? "prev" : "next")
+      if (!row) return
+      if (row.type === "header") root.setCollapsed(row.section, dx < 0)
+      else if (row.type === "widget") root.moveRow(row, dx < 0 ? "prev" : "next")
     }
     onActivateRequested: {
       var row = root.rows[root.cursor]
-      if (row) root.toggleRow(row)
+      if (!row) return
+      if (row.type === "header") root.toggleCollapse(row.section)
+      else root.toggleRow(row)
     }
     onTextKey: function(t) {
       var row = root.rows[root.cursor]
-      if (!row || row.type !== "widget") return
-      if (t === "K") root.moveRow(row, "up")
-      else if (t === "J") root.moveRow(row, "down")
+      if (!row || row.type === "header") return
+      if (t === "1" || t === "2" || t === "3") root.sendToLane(row, Number(t) - 1)
+      else if (row.type === "widget" && t === "K") root.moveRow(row, "up")
+      else if (row.type === "widget" && t === "J") root.moveRow(row, "down")
     }
 
     Column {
@@ -218,12 +318,23 @@ Item {
         }
       }
 
+      Text {
+        id: hint
+        width: parent.width
+        textFormat: Text.PlainText
+        wrapMode: Text.WordWrap
+        text: root.laneLetters.join(" ") + " pick the lane · ▲ ▼ reorder within it · click a lane name to fold it"
+        color: root.dim
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+      }
+
       PanelSeparator { foreground: root.fg }
 
       ListView {
         id: list
         width: parent.width
-        height: parent.height - hero.height - footer.height - Style.space(8) * 4 - 2
+        height: parent.height - hero.height - hint.height - footer.height - Style.space(8) * 5 - 2
         clip: true
         model: root.rows
         boundsBehavior: Flickable.StopAtBounds
@@ -235,26 +346,68 @@ Item {
           required property int index
           readonly property bool isHeader: modelData.type === "header"
           readonly property bool isAvailable: modelData.type === "available"
+          readonly property bool isWidget: modelData.type === "widget"
           readonly property bool hot: root.cursor === index
+          readonly property int laneIndex: isWidget ? root.laneKeys.indexOf(modelData.section) : -1
 
           width: list.width
           height: isHeader ? root.headerHeight : root.rowHeight
 
-          PanelSectionHeader {
+          // ---- lane header (the tree's parent node)
+          CursorSurface {
             visible: delegateRoot.isHeader
-            anchors.left: parent.left
-            anchors.leftMargin: Style.space(4)
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Style.space(4)
+            anchors.fill: parent
+            anchors.topMargin: Style.space(2)
+            hasCursor: delegateRoot.hot
             foreground: root.fg
-            text: delegateRoot.isHeader
-              ? (delegateRoot.modelData.label.toUpperCase() + "  " + delegateRoot.modelData.count)
-              : ""
+
+            MouseArea {
+              anchors.fill: parent
+              hoverEnabled: true
+              onEntered: root.cursor = delegateRoot.index
+              onClicked: {
+                root.cursor = delegateRoot.index
+                root.toggleCollapse(delegateRoot.modelData.section)
+              }
+            }
+
+            Row {
+              anchors.verticalCenter: parent.verticalCenter
+              anchors.left: parent.left
+              anchors.leftMargin: Style.space(8)
+              spacing: Style.space(8)
+
+              Text {
+                text: delegateRoot.isHeader && delegateRoot.modelData.collapsed ? "▸" : "▾"
+                textFormat: Text.PlainText
+                color: root.dim
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+              }
+              PanelSectionHeader {
+                foreground: root.fg
+                topPadding: 0
+                text: delegateRoot.isHeader
+                  ? (delegateRoot.modelData.label.toUpperCase() + "  " + delegateRoot.modelData.count)
+                  : ""
+              }
+            }
+          }
+
+          // ---- widget / available row (a child node)
+          Rectangle {
+            // the tree's vertical guide line
+            visible: !delegateRoot.isHeader
+            x: Style.space(12)
+            width: 1
+            height: parent.height
+            color: Qt.rgba(root.fg.r, root.fg.g, root.fg.b, 0.14)
           }
 
           CursorSurface {
             visible: !delegateRoot.isHeader
             anchors.fill: parent
+            anchors.leftMargin: root.indent + Style.space(6)
             anchors.topMargin: Style.space(1)
             anchors.bottomMargin: Style.space(1)
             hasCursor: delegateRoot.hot
@@ -263,19 +416,17 @@ Item {
             MouseArea {
               anchors.fill: parent
               hoverEnabled: true
-              onPositionChanged: root.cursor = delegateRoot.index
               onEntered: root.cursor = delegateRoot.index
               onClicked: root.cursor = delegateRoot.index
             }
 
             Row {
               anchors.fill: parent
-              anchors.leftMargin: Style.spacing.rowPaddingX
+              anchors.leftMargin: Style.space(8)
               anchors.rightMargin: Style.space(6)
-              spacing: Style.space(4)
+              spacing: Style.space(6)
 
               Column {
-                id: labels
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width - actions.width - parent.spacing
                 spacing: 0
@@ -311,45 +462,46 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Style.space(2)
 
-                PanelActionButton {
-                  visible: !delegateRoot.isAvailable && !delegateRoot.isHeader
-                  enabled: delegateRoot.modelData.section !== "left"
-                  iconText: "←"
-                  tooltipText: root.vertical ? "Move to the previous lane" : "Move to the lane on the left"
-                  foreground: root.fg
-                  onClicked: root.moveRow(delegateRoot.modelData, "prev")
-                }
-                PanelActionButton {
-                  visible: !delegateRoot.isAvailable && !delegateRoot.isHeader
-                  enabled: delegateRoot.modelData.index > 0
-                  iconText: "↑"
-                  tooltipText: "Move earlier"
-                  foreground: root.fg
+                // reorder inside the lane: only on the highlighted row
+                Chip {
+                  visible: delegateRoot.isWidget
+                  label: "▲"
+                  shown: delegateRoot.hot
+                  enabled: delegateRoot.hot && delegateRoot.isWidget && delegateRoot.modelData.index > 0
+                  dimmed: delegateRoot.hot && !enabled
                   onClicked: root.moveRow(delegateRoot.modelData, "up")
                 }
-                PanelActionButton {
-                  visible: !delegateRoot.isAvailable && !delegateRoot.isHeader
-                  enabled: delegateRoot.modelData.index < delegateRoot.modelData.sectionSize - 1
-                  iconText: "↓"
-                  tooltipText: "Move later"
-                  foreground: root.fg
+                Chip {
+                  visible: delegateRoot.isWidget
+                  label: "▼"
+                  shown: delegateRoot.hot
+                  enabled: delegateRoot.hot && delegateRoot.isWidget
+                    && delegateRoot.modelData.index < delegateRoot.modelData.sectionSize - 1
+                  dimmed: delegateRoot.hot && !enabled
                   onClicked: root.moveRow(delegateRoot.modelData, "down")
                 }
-                PanelActionButton {
-                  visible: !delegateRoot.isAvailable && !delegateRoot.isHeader
-                  enabled: delegateRoot.modelData.section !== "right"
-                  iconText: "→"
-                  tooltipText: root.vertical ? "Move to the next lane" : "Move to the lane on the right"
-                  foreground: root.fg
-                  onClicked: root.moveRow(delegateRoot.modelData, "next")
+
+                Item { width: Style.space(4); height: 1; visible: delegateRoot.isWidget }
+
+                // lane picker: the current lane is filled, the others move it there
+                Repeater {
+                  model: 3
+                  Chip {
+                    required property int index
+                    label: root.laneLetters[index]
+                    current: delegateRoot.laneIndex === index
+                    onClicked: root.sendToLane(delegateRoot.modelData, index)
+                  }
                 }
+
+                Item { width: Style.space(4); height: 1 }
+
                 ToggleSwitch {
-                  visible: !delegateRoot.isHeader
                   anchors.verticalCenter: parent.verticalCenter
                   cursorRing: false
                   trackHeight: Style.space(18)
                   checked: !delegateRoot.isAvailable
-                  opacity: delegateRoot.isHeader || delegateRoot.isAvailable || delegateRoot.modelData.canDisable ? 1 : 0.35
+                  opacity: delegateRoot.isAvailable || delegateRoot.modelData.canDisable ? 1 : 0.35
                   foreground: root.fg
                   onToggled: root.toggleRow(delegateRoot.modelData)
                 }

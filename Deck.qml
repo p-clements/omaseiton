@@ -152,6 +152,28 @@ Item {
       "sh", stateDir, JSON.stringify(target)])
   }
 
+  // The pointer rests over the list while the keyboard is used. Moving a widget
+  // rebuilds the panel, and scrolling the list shifts rows under the pointer;
+  // Qt answers both with a synthetic "mouse moved" event that would drag the
+  // highlight to whatever row is now under it. Only a pointer whose window
+  // position really changed counts. The first event after opening just records
+  // where the pointer is.
+  property real pointerX: NaN
+  property real pointerY: NaN
+
+  function pointerMoved(area, mouse) {
+    var p = area.mapToItem(null, mouse.x, mouse.y)
+    if (isNaN(pointerX)) {
+      pointerX = p.x
+      pointerY = p.y
+      return false
+    }
+    if (Math.abs(p.x - pointerX) < 2 && Math.abs(p.y - pointerY) < 2) return false
+    pointerX = p.x
+    pointerY = p.y
+    return true
+  }
+
   function revealCursor() {
     if (cursor >= 0 && cursor < rows.length && list.count > 0)
       list.positionViewAtIndex(cursor, ListView.Contain)
@@ -161,8 +183,15 @@ Item {
   // time. Waits until the bar layout and plugin list have both arrived.
   function settleCursor() {
     if (!config || !config.bar || plugins.length === 0) return
-    var at = Layout.findRow(rows, cursorTarget)
-    if (at >= 0) {
+    var target = cursorTarget
+    var at = Layout.findRow(rows, target)
+    if (at >= 0 && target.id && rows[at].id !== target.id) {
+      // The refreshes arrive in any order; this row is whatever sits at that
+      // position in the not-yet-updated list. Follow the widget by id for now
+      // and keep the target until the list catches up.
+      var byId = Layout.findRow(rows, { id: target.id })
+      if (byId >= 0) cursor = byId
+    } else if (at >= 0) {
       cursor = at
       cursorTarget = null
     } else if (!placed || cursor < 0 || cursor >= rows.length) {
@@ -517,9 +546,12 @@ Item {
             foreground: root.fg
 
             MouseArea {
+              id: headerMouse
               anchors.fill: parent
               hoverEnabled: true
-              onPositionChanged: root.cursor = delegateRoot.index
+              onPositionChanged: function(mouse) {
+                if (root.pointerMoved(headerMouse, mouse)) root.cursor = delegateRoot.index
+              }
               onClicked: {
                 root.cursor = delegateRoot.index
                 root.toggleCollapse(delegateRoot.modelData.section)
@@ -569,9 +601,12 @@ Item {
             foreground: root.fg
 
             MouseArea {
+              id: rowMouse
               anchors.fill: parent
               hoverEnabled: true
-              onPositionChanged: root.cursor = delegateRoot.index
+              onPositionChanged: function(mouse) {
+                if (root.pointerMoved(rowMouse, mouse)) root.cursor = delegateRoot.index
+              }
               onClicked: root.cursor = delegateRoot.index
             }
 

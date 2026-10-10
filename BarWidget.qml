@@ -68,6 +68,7 @@ BarWidget {
     Loader {
       id: content
       anchors.fill: parent
+      focus: true
       active: root.opened
       sourceComponent: Deck {
         bar: root.bar

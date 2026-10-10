@@ -9,9 +9,9 @@ import "Layout.js" as Layout
 // collapsible parent and the bar widgets sit underneath it in bar order.
 //
 // On a row, the L / C / R buttons say which lane the widget is in (the current
-// one is filled) and move it to another lane with one click. Two arrows reorder
-// inside the lane, along the bar's own direction (left / right on a horizontal
-// bar, up / down on a vertical one), and appear on the highlighted row.
+// one is filled) and move it to another lane with one click. Two arrows (up and
+// down, matching Shift+Up / Shift+Down) reorder
+// inside the lane and appear on the highlighted row.
 //
 // A "Layouts" node saves and restores whole bar layouts. Moves and toggles go
 // through the shell's own IPC (the same calls `omarchy bar` and `omarchy plugin`
@@ -43,6 +43,7 @@ Item {
   readonly property string layoutScript: Qt.resolvedUrl("scripts/layout.sh").toString().replace(/^file:\/\//, "")
   property int cursor: -1
   property var cursorTarget: null
+  property bool placed: false
   property bool busy: false
 
   readonly property int onBarCount: {
@@ -125,18 +126,66 @@ Item {
     setCollapsed(section, !(collapsed && collapsed[section]))
   }
 
-  // After a refresh, put the cursor back on the row the user just acted on.
-  function settleCursor() {
-    var at = Layout.findRow(rows, cursorTarget)
-    if (at >= 0) cursor = at
-    else if (cursor < 0 || cursor >= rows.length) cursor = Layout.stepCursor(rows, -1, 1)
+  // The bar rebuilds after every change, which destroys this panel and builds
+  // a new one. Where the highlight was is remembered in a small file so the
+  // new panel can put it back on the widget that just moved (so a key such as
+  // Shift+Down can be pressed again and again).
+  Process {
+    id: cursorLoad
+    command: ["find", root.stateDir + "/cursor.json", "-newermt", "10 seconds ago", "-exec", "cat", "{}", ";"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var saved = Layout.parseJson(text, null)
+        Quickshell.execDetached(["rm", "-f", root.stateDir + "/cursor.json"])
+        if (saved && typeof saved === "object") {
+          root.cursorTarget = saved
+          root.settleCursor()
+        }
+      }
+    }
+  }
+
+  function rememberCursor(target) {
+    cursorTarget = target
+    Quickshell.execDetached(["sh", "-c", 'mkdir -p "$1" && printf %s "$2" > "$1/cursor.json"',
+      "sh", stateDir, JSON.stringify(target)])
+  }
+
+  function revealCursor() {
     if (cursor >= 0 && cursor < rows.length && list.count > 0)
       list.positionViewAtIndex(cursor, ListView.Contain)
   }
 
+  // Put the highlight on the remembered row, or on the first widget the first
+  // time. Waits until the bar layout and plugin list have both arrived.
+  function settleCursor() {
+    if (!config || !config.bar || plugins.length === 0) return
+    var at = Layout.findRow(rows, cursorTarget)
+    if (at >= 0) {
+      cursor = at
+      cursorTarget = null
+    } else if (!placed || cursor < 0 || cursor >= rows.length) {
+      cursor = Layout.initialCursor(rows)
+    }
+    placed = true
+    revealCursor()
+  }
+
   Component.onCompleted: {
     collapsedLoad.running = true
+    cursorLoad.running = true
     refresh()
+    // Keys only work once this panel holds keyboard focus. The popup asks for
+    // it before this content exists, so ask again from in here.
+    Qt.callLater(function() { keys.forceActiveFocus() })
+    focusRetry.start()
+  }
+
+  Timer {
+    id: focusRetry
+    interval: 150
+    onTriggered: keys.forceActiveFocus()
   }
 
   // ------------------------------------------------------------- commands
@@ -187,7 +236,7 @@ Item {
     if (!placement) return
     // Never move a widget into a lane the user cannot see it land in.
     if (collapsed && collapsed[placement.section]) setCollapsed(placement.section, false)
-    cursorTarget = { id: row.id }
+    rememberCursor({ id: row.id, section: placement.section, index: placement.index })
     shellCall("moveBarWidget", [row.id, JSON.stringify(placement)])
   }
 
@@ -197,7 +246,7 @@ Item {
     var lane = laneKeys[laneIndex]
     if (row.type === "available") {
       if (collapsed && collapsed[lane]) setCollapsed(lane, false)
-      cursorTarget = { id: row.id }
+      rememberCursor({ id: row.id })
       shellCall("enablePlugin", [row.id, JSON.stringify({ section: lane })])
     } else if (row.type === "widget") {
       moveRow(row, "to-" + lane)
@@ -207,10 +256,13 @@ Item {
   function toggleRow(row) {
     if (row.type === "widget") {
       if (!row.canDisable) return
-      cursorTarget = null
+      // Leave the highlight on the neighbour that takes its place.
+      rememberCursor(row.sectionSize > 1
+        ? { section: row.section, index: Math.min(row.index, row.sectionSize - 2) }
+        : { header: row.section })
       shellCall("setPluginEnabled", [row.id, "false"])
     } else if (row.type === "available") {
-      cursorTarget = { id: row.id }
+      rememberCursor({ id: row.id })
       shellCall("enablePlugin", [row.id, "{}"])
     }
   }
@@ -302,45 +354,85 @@ Item {
   readonly property int headerHeight: Style.space(28)
   readonly property int indent: Style.space(14)
 
-  PanelKeyCatcher {
+  // A Shift press has to reach us, and Omarchy's PanelKeyCatcher ignores
+  // modifiers, so Omaseiton reads keys itself. Plain keys move the highlight;
+  // Shift moves the widget: up / down is the order in a lane, left / right is
+  // the lane. See Layout.resolveKey for the full table.
+  function keyToken(event) {
+    if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return ""
+    var name = ""
+    switch (event.key) {
+      case Qt.Key_Up: name = "up"; break
+      case Qt.Key_Down: name = "down"; break
+      case Qt.Key_Left: name = "left"; break
+      case Qt.Key_Right: name = "right"; break
+      case Qt.Key_Home: name = "home"; break
+      case Qt.Key_End: name = "end"; break
+      case Qt.Key_Return:
+      case Qt.Key_Enter: name = "enter"; break
+      case Qt.Key_Space: name = "space"; break
+      case Qt.Key_Escape: name = "esc"; break
+    }
+    if (name !== "") return ((event.modifiers & Qt.ShiftModifier) ? "shift+" : "") + name
+    return event.text
+  }
+
+  // Returns true when the key was ours.
+  function handleKey(token) {
+    var row = rows[cursor] || null
+    var action = Layout.resolveKey(row, token, { armed: armedSlot !== "" })
+    if (action.kind === "none") return false
+
+    // While a change is being applied the bar is about to rebuild: ignore
+    // anything that would change it again, so keys cannot act on stale rows.
+    var changes = action.kind === "move" || action.kind === "send" || action.kind === "toggle"
+      || action.kind === "restore" || action.kind === "save"
+    if (changes && busy) return true
+
+    switch (action.kind) {
+      case "cursor":
+        cursor = action.dy ? Layout.stepCursor(rows, cursor, action.dy)
+          : (action.to === "first" ? 0 : Math.max(0, rows.length - 1))
+        revealCursor()
+        break
+      case "lane":
+        cursor = Layout.laneHeader(rows, cursor < 0 ? 0 : cursor, action.dir)
+        revealCursor()
+        break
+      case "parent":
+        cursor = Layout.parentHeader(rows, cursor)
+        revealCursor()
+        break
+      case "fold": setCollapsed(row.section, action.value); break
+      case "foldToggle": toggleCollapse(row.section); break
+      case "unfold":
+        if (row.collapsed) setCollapsed(row.section, false)
+        else if (cursor + 1 < rows.length && rows[cursor + 1].type !== "header") {
+          cursor = cursor + 1
+          revealCursor()
+        }
+        break
+      case "move": moveRow(row, action.action); break
+      case "send": sendToLane(row, action.lane); break
+      case "toggle": toggleRow(row); break
+      case "restore": restoreLayout(row); break
+      case "save": saveMine(); break
+      case "disarm":
+        armedSlot = ""
+        armTimer.stop()
+        break
+      case "close": closeRequested(); break
+    }
+    return true
+  }
+
+  Item {
     id: keys
     anchors.fill: parent
-    onCloseRequested: root.closeRequested()
-    onMoveRequested: function(dx, dy) {
-      if (dy !== 0) {
-        root.cursor = Layout.stepCursor(root.rows, root.cursor, dy)
-        list.positionViewAtIndex(root.cursor, ListView.Contain)
-        return
-      }
-      var row = root.rows[root.cursor]
-      if (!row) return
-      if (row.type === "header") root.setCollapsed(row.section, dx < 0)
-      else if (row.type === "widget") {
-        // Along the bar's own direction: left / right reorders on a horizontal
-        // bar; on a vertical bar those keys change lane instead.
-        if (root.vertical) root.moveRow(row, dx < 0 ? "prev" : "next")
-        else root.moveRow(row, dx < 0 ? "up" : "down")
-      }
-    }
-    onActivateRequested: {
-      var row = root.rows[root.cursor]
-      if (!row) return
-      if (row.type === "header") root.toggleCollapse(row.section)
-      else if (row.type === "layout") root.restoreLayout(row)
-      else root.toggleRow(row)
-    }
-    onTextKey: function(t) {
-      var row = root.rows[root.cursor]
-      if (!row || row.type === "header") return
-      if (row.type === "layout") {
-        if (t === "s" && row.kind === "mine") root.saveMine()
-        return
-      }
-      if (t === "1" || t === "2" || t === "3") root.sendToLane(row, Number(t) - 1)
-      else if (row.type === "widget" && root.vertical && t === "K") root.moveRow(row, "up")
-      else if (row.type === "widget" && root.vertical && t === "J") root.moveRow(row, "down")
-      else if (row.type === "widget" && !root.vertical && t === "H") root.moveRow(row, "up")
-      else if (row.type === "widget" && !root.vertical && t === "L") root.moveRow(row, "down")
+    focus: true
+    Keys.onPressed: function(event) {
+      var token = root.keyToken(event)
+      if (token !== "" && root.handleKey(token)) event.accepted = true
     }
 
     Column {
@@ -362,15 +454,33 @@ Item {
         }
       }
 
-      Text {
+      Column {
         id: hint
         width: parent.width
-        textFormat: Text.PlainText
-        wrapMode: Text.WordWrap
-        text: root.laneLetters.join(" ") + " pick the lane · " + (root.vertical ? "▲ ▼" : "◀ ▶") + " reorder · click a lane name to fold it"
-        color: root.dim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        spacing: Style.space(2)
+
+        // the keys that always work
+        Text {
+          width: parent.width
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          text: Layout.HINT_KEYS
+          color: root.dim
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
+        // what the keys do for the highlighted row; a fixed height, so the
+        // list below does not jump as the highlight moves
+        Text {
+          width: parent.width
+          height: Style.font.caption + Style.space(6)
+          textFormat: Text.PlainText
+          elide: Text.ElideRight
+          text: Layout.hintFor(root.rows[root.cursor] || null, root.armedSlot !== "")
+          color: Color.accent
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
       }
 
       PanelSeparator { foreground: root.fg }
@@ -409,7 +519,7 @@ Item {
             MouseArea {
               anchors.fill: parent
               hoverEnabled: true
-              onEntered: root.cursor = delegateRoot.index
+              onPositionChanged: root.cursor = delegateRoot.index
               onClicked: {
                 root.cursor = delegateRoot.index
                 root.toggleCollapse(delegateRoot.modelData.section)
@@ -461,7 +571,7 @@ Item {
             MouseArea {
               anchors.fill: parent
               hoverEnabled: true
-              onEntered: root.cursor = delegateRoot.index
+              onPositionChanged: root.cursor = delegateRoot.index
               onClicked: root.cursor = delegateRoot.index
             }
 
@@ -515,7 +625,7 @@ Item {
                 // reorder inside the lane: only on the highlighted row
                 Chip {
                   visible: delegateRoot.isWidget
-                  label: root.vertical ? "▲" : "◀"
+                  label: "▲"
                   shown: delegateRoot.hot
                   enabled: delegateRoot.hot && delegateRoot.isWidget && delegateRoot.modelData.index > 0
                   dimmed: delegateRoot.hot && !enabled
@@ -523,7 +633,7 @@ Item {
                 }
                 Chip {
                   visible: delegateRoot.isWidget
-                  label: root.vertical ? "▼" : "▶"
+                  label: "▼"
                   shown: delegateRoot.hot
                   enabled: delegateRoot.hot && delegateRoot.isWidget
                     && delegateRoot.modelData.index < delegateRoot.modelData.sectionSize - 1

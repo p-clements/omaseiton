@@ -3,7 +3,11 @@
 ## 0.2.0 (unreleased)
 
 - Layouts: save your bar as "My layout", restore it, or return to the Omarchy default. A snapshot is taken before every restore (last five kept)
-- Reorder arrows follow the bar: ◀ ▶ on a horizontal bar, ▲ ▼ on a vertical one
+- One key rule: plain keys move the highlight, Shift moves the widget (Shift+↑↓ reorders, Shift+←→ changes lane, 1 2 3 jump to a lane)
+- Navigate with ↑↓ jk, Home End, and [ ] between lanes; keys work as soon as the dropdown opens
+- The highlight stays on the widget after each move, so a key can be pressed repeatedly
+- Two hint lines: the keys that always work, and what the keys do for the current row
+- Reorder buttons are ▲ ▼ to match the keys
 - Removed the old Reset button, which replaced the layout with no way back
 
 ## 0.1.0

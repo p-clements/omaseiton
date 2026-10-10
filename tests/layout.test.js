@@ -130,6 +130,131 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
   assert.equal(L.buildLayoutRows(null, null).length, 3, "bad input is safe")
 }
 
+// findRow: precise target first, then header, then id
+{
+  const rows = L.buildRows({ bar: { layout: { left: [{ id: "a.spacer" }, { id: "a.spacer" }, { id: "a.menu" }], center: [], right: [] } } }, plugins, "x.deck", false)
+  const second = L.findRow(rows, { id: "a.spacer", section: "left", index: 1 })
+  assert.equal(rows[second].index, 1, "with two spacers, section and index win over id")
+  assert.equal(rows[L.findRow(rows, { id: "a.spacer" })].index, 0, "by id alone, the first one")
+  assert.equal(rows[L.findRow(rows, { header: "center" })].type, "header")
+  assert.equal(L.findRow(rows, { section: "left", index: 99 }), -1)
+  assert.equal(L.findRow(rows, {}), -1)
+}
+
+// resolveKey
+{
+  const widget = { type: "widget", id: "a.clock", section: "center", index: 1 }
+  const header = { type: "header", section: "center", collapsed: false }
+  const avail = { type: "available", id: "a.spare" }
+  const mine = { type: "layout", kind: "mine", slot: "mine", exists: true }
+  const stock = { type: "layout", kind: "default", slot: "omarchy-default", exists: true }
+  const k = (row, token, ctx) => L.resolveKey(row, token, ctx)
+
+  // navigation works on every row, and with no row at all
+  for (const row of [widget, header, avail, mine, null]) {
+    assert.deepEqual(k(row, "down"), { kind: "cursor", dy: 1 })
+    assert.deepEqual(k(row, "j"), { kind: "cursor", dy: 1 })
+    assert.deepEqual(k(row, "up"), { kind: "cursor", dy: -1 })
+    assert.deepEqual(k(row, "k"), { kind: "cursor", dy: -1 })
+    assert.deepEqual(k(row, "home"), { kind: "cursor", to: "first" })
+    assert.deepEqual(k(row, "g"), { kind: "cursor", to: "first" })
+    assert.deepEqual(k(row, "end"), { kind: "cursor", to: "last" })
+    assert.deepEqual(k(row, "G"), { kind: "cursor", to: "last" })
+    assert.deepEqual(k(row, "]"), { kind: "lane", dir: 1 })
+    assert.deepEqual(k(row, "["), { kind: "lane", dir: -1 })
+  }
+
+  // Shift moves a widget: up / down is the order, left / right is the lane
+  assert.deepEqual(k(widget, "shift+up"), { kind: "move", action: "up" })
+  assert.deepEqual(k(widget, "K"), { kind: "move", action: "up" })
+  assert.deepEqual(k(widget, "shift+down"), { kind: "move", action: "down" })
+  assert.deepEqual(k(widget, "J"), { kind: "move", action: "down" })
+  assert.deepEqual(k(widget, "shift+left"), { kind: "move", action: "prev" })
+  assert.deepEqual(k(widget, "H"), { kind: "move", action: "prev" })
+  assert.deepEqual(k(widget, "shift+right"), { kind: "move", action: "next" })
+  assert.deepEqual(k(widget, "L"), { kind: "move", action: "next" })
+  for (const row of [header, avail, mine, stock, null]) {
+    for (const t of ["shift+up", "shift+down", "shift+left", "shift+right", "K", "J", "H", "L"]) {
+      assert.equal(k(row, t).kind, "none", t + " only moves widgets")
+    }
+  }
+
+  // lanes by number
+  assert.deepEqual(k(widget, "1"), { kind: "send", lane: 0 })
+  assert.deepEqual(k(widget, "3"), { kind: "send", lane: 2 })
+  assert.deepEqual(k(avail, "2"), { kind: "send", lane: 1 })
+  assert.equal(k(header, "1").kind, "none")
+  assert.equal(k(mine, "2").kind, "none")
+
+  // plain left / right never move a widget; they climb to the lane or fold it
+  assert.deepEqual(k(widget, "left"), { kind: "parent" })
+  assert.deepEqual(k(widget, "h"), { kind: "parent" })
+  assert.deepEqual(k(avail, "left"), { kind: "parent" })
+  assert.equal(k(widget, "right").kind, "none")
+  assert.equal(k(widget, "l").kind, "none", "l is navigation now, not a reorder")
+  assert.deepEqual(k(header, "left"), { kind: "fold", value: true })
+  assert.deepEqual(k(header, "right"), { kind: "unfold" })
+  assert.deepEqual(k(header, "l"), { kind: "unfold" })
+
+  // toggle and activate
+  assert.deepEqual(k(widget, "space"), { kind: "toggle" })
+  assert.deepEqual(k(widget, "x"), { kind: "toggle" })
+  assert.equal(k(widget, "enter").kind, "none", "Enter never switches a widget off")
+  assert.deepEqual(k(avail, "space"), { kind: "toggle" })
+  assert.deepEqual(k(avail, "enter"), { kind: "toggle" })
+  assert.deepEqual(k(header, "enter"), { kind: "foldToggle" })
+  assert.deepEqual(k(header, "space"), { kind: "foldToggle" })
+
+  // layouts
+  assert.deepEqual(k(mine, "enter"), { kind: "restore" })
+  assert.deepEqual(k(stock, "enter"), { kind: "restore" })
+  assert.deepEqual(k(mine, "s"), { kind: "save" })
+  assert.equal(k(stock, "s").kind, "none", "only My layout can be saved")
+  assert.equal(k(widget, "s").kind, "none")
+  assert.equal(k(mine, "space").kind, "none")
+
+  // escape: cancel an armed restore first, otherwise close
+  assert.deepEqual(k(mine, "esc", { armed: true }), { kind: "disarm" })
+  assert.deepEqual(k(mine, "esc", { armed: false }), { kind: "close" })
+  assert.deepEqual(k(null, "esc"), { kind: "close" })
+
+  // keys we do not own are left alone
+  for (const t of ["q", "w", "tab", "z", "5", "c", "r", ""]) assert.equal(k(widget, t).kind, "none", "'" + t + "' is ignored")
+}
+
+// parentHeader / laneHeader / initialCursor / hintFor
+{
+  const rows = L.buildRows(config, plugins, "x.deck", false, {}, [])
+  const header = i => rows[i].type === "header"
+  const clock = L.findRow(rows, { id: "a.clock" })
+  const centerHeader = L.parentHeader(rows, clock)
+  assert.equal(rows[centerHeader].section, "center")
+  assert.equal(L.parentHeader(rows, centerHeader), centerHeader, "a header is its own parent")
+
+  const right = L.laneHeader(rows, clock, 1)
+  assert.equal(rows[right].section, "right", "] from a center widget goes to the right lane")
+  assert.equal(L.laneHeader(rows, clock, -1), centerHeader, "[ from inside a lane goes to its own header")
+  assert.equal(rows[L.laneHeader(rows, centerHeader, -1)].section, "left", "[ from a header goes to the previous lane")
+  const lastHeader = rows.map((r, i) => header(i) ? i : -1).filter(i => i >= 0).pop()
+  assert.equal(L.laneHeader(rows, lastHeader, 1), lastHeader, "no lane after the last one")
+  assert.equal(L.laneHeader(rows, 0, -1), 0, "no lane before the first one")
+
+  assert.equal(rows[L.initialCursor(rows)].type, "widget", "the highlight starts on a widget")
+  const folded = L.buildRows(config, plugins, "x.deck", false, { left: true, center: true, right: true, available: true }, [])
+  assert.equal(L.initialCursor(folded), 0, "with everything folded, the first row")
+  assert.equal(L.initialCursor([]), -1)
+
+  assert.equal(L.hintFor(rows[clock], false), "Space off · ← lane header")
+  assert.equal(L.hintFor(rows[centerHeader], false), "← → or Enter fold")
+  assert.equal(L.hintFor({ type: "available" }, false), "Space switch on · 1 2 3 into a lane")
+  assert.equal(L.hintFor({ type: "layout", kind: "mine", exists: true }, false), "Enter twice restore · s save")
+  assert.equal(L.hintFor({ type: "layout", kind: "mine", exists: false }, false), "s save")
+  assert.equal(L.hintFor({ type: "layout", kind: "default" }, false), "Enter twice restore")
+  assert.equal(L.hintFor({ type: "layout", kind: "default" }, true), "Enter again to restore · Esc cancel")
+  assert.equal(L.hintFor(null, false), "")
+  assert.ok(L.HINT_KEYS.indexOf("Shift+↑↓") >= 0)
+}
+
 assert.deepEqual(L.parseJson("{bad", []), [])
 assert.deepEqual(L.parseJson("", {}), {})
 console.log("layout tests passed")

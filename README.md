@@ -31,10 +31,10 @@ More screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 |---|---|
 | **A small tree** | Each lane is a foldable node with its widgets nested underneath, in bar order, with the plugin id and whether it is built in, a plugin or a clone. |
 | **Change lane** | Every row has **L C R** buttons (**S C E** on a vertical bar). The current lane is filled in; click another to move the widget there. |
-| **Reorder** | Highlight a row and use its **◀ ▶** buttons to move it earlier or later inside its lane. They point the way the widget moves on the bar, and become **▲ ▼** on a vertical bar. |
+| **Reorder** | Highlight a row and use its **▲ ▼** buttons (or `Shift+↑` `Shift+↓`) to move it earlier or later inside its lane. |
 | **Toggle** | Switch a widget off the bar, or switch an available one on. In the Available list the **L C R** buttons switch it on in that lane. |
 | **Native look** | Built from Omarchy's own UI components and theme colours, so it follows `omarchy theme set` automatically. |
-| **Keyboard first** | `j`/`k` move the cursor, `h`/`l` change lane, `Shift+J`/`Shift+K` reorder, `Space` toggles, `Esc` closes. |
+| **Keyboard first** | Arrows move the highlight, `Shift`+arrows move the widget, `1` `2` `3` pick a lane, `Space` toggles. See [Keys](#keys). |
 | **Layouts** | Save your bar as **My layout** and bring it back later, or return to the stock **Omarchy default**. A snapshot is taken automatically before every restore, so a restore can always be undone. |
 | **Plugin shortcuts** | Browse the [Omarchy marketplace](https://plugins.omarchy.org), add a plugin from a git URL, or update your git plugins. |
 
@@ -56,14 +56,27 @@ omarchy plugin remove pclements.omaseiton
 
 ## Keys
 
+The rule: **plain keys move the highlight, `Shift` moves the widget.** Inside a lane, up and down is the order; left and right is the lane.
+
 | Key | Action |
 |---|---|
-| `j` / `k` or `↓` / `↑` | Move the highlight |
-| `1` / `2` / `3` | Send the highlighted widget to the left / center / right lane |
-| `h` / `l` or `←` / `→` | On a widget: move it earlier or later along the bar. On a lane: fold or unfold it |
-| `Space` / `Enter` | On a widget: switch it off (or on, in Available). On a lane: fold or unfold it. On a layout: restore it (press twice) |
+| `↑` `↓` / `j` `k` | Move the highlight |
+| `Home` `End` / `g` `G` | First / last row |
+| `[` `]` | Jump to the previous / next lane |
+| `←` / `h` | On a widget: jump up to its lane. On a lane: fold it |
+| `→` / `l` | On a lane: unfold it, or step into it if it is already open |
+| `Shift+↑` `Shift+↓` (or `K` `J`) | Move the widget earlier / later in its lane |
+| `Shift+←` `Shift+→` (or `H` `L`) | Move the widget to the previous / next lane |
+| `1` `2` `3` | Send the widget to the left / center / right lane. On an **Available** row, switch it on in that lane |
+| `Space` | Switch the widget off. On an Available row, switch it on |
+| `x` | Switch the widget off |
+| `Enter` | On a lane: fold or unfold. On Available: switch on. On a layout: restore it (press twice) |
 | `s` | On **My layout**: save the current bar |
-| `Esc` | Close |
+| `Esc` | Cancel a pending restore, otherwise close |
+
+The top of the dropdown always shows the keys that work everywhere, and a second line shows what the keys do for the row you are on.
+
+On a vertical bar the same keys apply: lanes are Start / Center / End, and the lane buttons read **S C E**.
 
 ## How it works, and what it touches
 

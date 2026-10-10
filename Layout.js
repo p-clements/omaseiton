@@ -94,7 +94,7 @@ function buildLayoutRows(layouts, collapsed) {
   var rows = [{ type: "header", section: "layouts", label: "Layouts", count: 2 + autos.length, collapsed: !!collapsed.layouts }]
   if (collapsed.layouts) return rows
   rows.push({ type: "layout", slot: "omarchy-default", kind: "default", name: "Omarchy default",
-    note: "the stock bar. Your own widgets are taken off it", savedAt: "", widgets: 0, exists: true })
+    note: "the stock bar. Omaseiton stays, your other widgets come off", savedAt: "", widgets: 0, exists: true })
   rows.push({ type: "layout", slot: "mine", kind: "mine", name: "My layout",
     note: mine ? "" : "not saved yet", savedAt: mine ? mine.savedAt : "", widgets: mine ? mine.widgets : 0, exists: !!mine })
   for (var k = 0; k < autos.length; k++) {

@@ -78,7 +78,9 @@ Moving and switching widgets never edits `shell.json` directly. Those changes go
 
 **Restoring a layout is the one thing that writes `shell.json`**, and only when you press Restore (or Reset on "Omarchy default") twice. It works the way `omarchy bar` does: the file is replaced atomically, then the shell reloads it. Before anything is replaced, [`scripts/layout.sh`](scripts/layout.sh) saves a snapshot of the current layout to `~/.config/omaseiton/layouts/`, keeping the last five. If that snapshot fails, nothing is restored.
 
-"Omarchy default" runs `omarchy bar defaults`, which puts the stock bar back and takes your own widgets (and their settings, such as the tray pin) off it. The snapshot taken first is what lets you get them back.
+"Omarchy default" runs `omarchy bar defaults`, which puts the stock bar back and takes your other widgets (and their settings, such as the tray pin) off it. The snapshot taken first is what lets you get them back.
+
+**Omaseiton always stays on the bar.** Whatever you restore, if the layout does not include Omaseiton it is put back exactly where it was, so the way to undo is never taken away.
 
 Things worth knowing:
 

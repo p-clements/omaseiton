@@ -13,12 +13,27 @@
 # Snapshots live in ~/.config/omaseiton/layouts/<slot>.json. Restoring writes
 # ~/.config/omarchy/shell.json atomically, the same way `omarchy bar` does,
 # then asks the shell to reload it.
+#
+# Omaseiton always stays on the bar: if a restored layout (or the Omarchy
+# default) does not include it, it is put back exactly where it was, so the
+# way to undo a restore is never taken away.
 
 set -euo pipefail
 
 CONFIG_FILE="${OMASEITON_CONFIG_FILE:-$HOME/.config/omarchy/shell.json}"
 LAYOUT_DIR="${OMASEITON_LAYOUT_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/omaseiton/layouts}"
 KEEP_AUTO=5
+
+# This plugin's own id, read from the manifest next to the scripts folder.
+SELF_ID="${OMASEITON_ID:-$(jq -r '.id // empty' "$(dirname "${BASH_SOURCE[0]}")/../manifest.json" 2>/dev/null || true)}"
+SELF_ID="${SELF_ID:-pclements.omaseiton}"
+
+# Insert {id: $id} at $spot (section + index) unless the layout already has it.
+JQ_ENSURE='def ensure($id; $spot):
+  if ([.bar.layout[] | .[] | (if type == "object" then .id else . end)] | index($id)) != null then .
+  else (.bar.layout[$spot.section]) as $lane
+    | .bar.layout[$spot.section] = (($lane // [])[0:$spot.index] + [{id: $id}] + ($lane // [])[$spot.index:])
+  end;'
 
 fail() {
   echo "layout.sh: $*" >&2
@@ -37,6 +52,32 @@ live_config() {
 reload_shell() {
   [[ -n ${OMASEITON_NO_RELOAD:-} ]] && return 0
   omarchy-shell shell reloadConfig >/dev/null 2>&1 || omarchy-shell -q shell rescanPlugins >/dev/null 2>&1 || true
+}
+
+# Where Omaseiton sits on the bar right now: {"section": ..., "index": ...}.
+# Falls back to the start of the right lane if it is not on the bar.
+self_spot() {
+  live_config | jq -c --arg id "$SELF_ID" '
+    . as $c
+    | [["left", "center", "right"][] as $s
+       | ($c.bar.layout[$s] // []) | to_entries[]
+       | select((if (.value | type) == "object" then .value.id else .value end) == $id)
+       | {section: $s, index: .key}]
+    | .[0] // {section: "right", index: 0}' 2>/dev/null || echo '{"section":"right","index":0}'
+}
+
+# Put Omaseiton back on the bar if the current config lacks it.
+ensure_self() {
+  local spot="$1" tmp
+  [[ -f $CONFIG_FILE ]] || return 0
+  tmp=$(mktemp "$CONFIG_FILE.XXXXXX")
+  if jq -S --arg id "$SELF_ID" --argjson spot "$spot" "$JQ_ENSURE ensure(\$id; \$spot)" "$CONFIG_FILE" >"$tmp" 2>/dev/null &&
+    ! cmp -s "$tmp" "$CONFIG_FILE"; then
+    mv "$tmp" "$CONFIG_FILE"
+    reload_shell
+  else
+    rm -f "$tmp"
+  fi
 }
 
 valid_slot() {
@@ -72,11 +113,13 @@ auto_slot() {
 
 prune_auto() {
   local file
-  # Newest first by name (timestamps sort lexically); drop everything past KEEP_AUTO.
+  # Newest first by slot name (timestamps sort lexically); drop everything past
+  # KEEP_AUTO. The extension comes off before sorting: with it on, "auto-T-1.json"
+  # would sort before "auto-T.json" and the newer snapshot would be pruned first.
   while IFS= read -r file; do
-    rm -f -- "$file"
+    rm -f -- "$LAYOUT_DIR/$file.json"
   done < <(find "$LAYOUT_DIR" -maxdepth 1 -name 'auto-*.json' -printf '%f\n' 2>/dev/null |
-    sort -r | tail -n +"$((KEEP_AUTO + 1))" | sed "s|^|$LAYOUT_DIR/|")
+    sed 's/\.json$//' | sort -r | tail -n +"$((KEEP_AUTO + 1))")
 }
 
 cmd_save() {
@@ -103,12 +146,14 @@ cmd_list() {
 }
 
 cmd_restore() {
-  local slot="${1:-}" file tmp
+  local slot="${1:-}" file tmp spot
   valid_slot "$slot" || fail "invalid slot '$slot'"
   file="$LAYOUT_DIR/$slot.json"
   [[ -f $file ]] || fail "no saved layout '$slot'"
   jq -e '(.bar.layout.left | type == "array") and (.bar.layout.center | type == "array") and (.bar.layout.right | type == "array")' "$file" >/dev/null 2>&1 ||
     fail "'$slot' is not a valid layout"
+
+  spot=$(self_spot)
 
   # Safety net first. If this fails we stop: never restore without a way back.
   snapshot "$(auto_slot)"
@@ -116,7 +161,9 @@ cmd_restore() {
 
   [[ -f $CONFIG_FILE ]] || echo '{"version":1}' >"$CONFIG_FILE"
   tmp=$(mktemp "$CONFIG_FILE.XXXXXX")
-  if ! jq -S --slurpfile saved "$file" '.version = 1 | .bar = $saved[0].bar | .plugins = ($saved[0].plugins // [])' "$CONFIG_FILE" >"$tmp"; then
+  if ! jq -S --slurpfile saved "$file" --arg id "$SELF_ID" --argjson spot "$spot" \
+    "$JQ_ENSURE .version = 1 | .bar = \$saved[0].bar | .plugins = (\$saved[0].plugins // []) | ensure(\$id; \$spot)" \
+    "$CONFIG_FILE" >"$tmp"; then
     rm -f "$tmp"
     fail "could not apply '$slot'; your bar is unchanged"
   fi
@@ -126,9 +173,12 @@ cmd_restore() {
 }
 
 cmd_defaults() {
+  local spot
+  spot=$(self_spot)
   snapshot "$(auto_slot)"
   prune_auto
   omarchy bar defaults
+  ensure_self "$spot"
 }
 
 case "${1:-}" in

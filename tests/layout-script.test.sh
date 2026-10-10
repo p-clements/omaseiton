@@ -91,6 +91,86 @@ bash "$SCRIPT" restore mine >/dev/null
 check "old automatic snapshots are pruned" test "$(find "$OMASEITON_LAYOUT_DIR" -name 'auto-*.json' | wc -l)" -eq 5
 check "mine is never pruned" test -f "$OMASEITON_LAYOUT_DIR/mine.json"
 check "oldest were the ones dropped" test ! -f "$OMASEITON_LAYOUT_DIR/auto-20200101-000000.json"
+fresh=$(bash "$SCRIPT" list | jq -r 'map(select(.slot | startswith("auto-")))[0].slot')
+check "the snapshot just taken is the newest and survives pruning" bash -c "[[ '$fresh' != auto-2020* && -f '$OMASEITON_LAYOUT_DIR/$fresh.json' ]]"
+
+# several snapshots in the same second: the newest is never the one pruned
+for _ in 1 2 3 4 5 6 7; do bash "$SCRIPT" restore mine >/dev/null; done
+check "still only five automatic snapshots" test "$(find "$OMASEITON_LAYOUT_DIR" -name 'auto-*.json' | wc -l)" -eq 5
+last=$(bash "$SCRIPT" list | jq -r 'map(select(.slot | startswith("auto-")))[0].slot')
+check "newest snapshot is a suffixed or timestamped slot from this run" bash -c "[[ '$last' != auto-2020* ]]"
+
+# Omaseiton always stays on the bar after a restore
+{
+  export OMASEITON_ID="x.me"
+  export OMASEITON_CONFIG_FILE="$WORK/self-shell.json"
+  export OMASEITON_LAYOUT_DIR="$WORK/self-layouts"
+  export OMASEITON_LIVE_FILE="$WORK/self-live.json"
+
+  # a snapshot saved before Omaseiton was installed
+  cat >"$OMASEITON_LIVE_FILE" <<'EOF'
+{"version":1,"bar":{"layout":{"left":[{"id":"a.menu"}],"center":[{"id":"a.clock"}],"right":[{"id":"a.tray"},{"id":"a.power"}]}},"plugins":[]}
+EOF
+  bash "$SCRIPT" save mine >/dev/null
+
+  # now Omaseiton is installed, second in the right lane
+  cat >"$OMASEITON_LIVE_FILE" <<'EOF'
+{"version":1,"bar":{"layout":{"left":[{"id":"a.menu"}],"center":[{"id":"a.clock"}],"right":[{"id":"a.tray"},{"id":"x.me"},{"id":"a.power"}]}},"plugins":[]}
+EOF
+  cp "$OMASEITON_LIVE_FILE" "$OMASEITON_CONFIG_FILE"
+  bash "$SCRIPT" restore mine >/dev/null
+  check "self is put back after a restore that lacks it" jq -e '[.bar.layout.right[].id] == ["a.tray","x.me","a.power"]' "$OMASEITON_CONFIG_FILE" >/dev/null
+  check "self is not duplicated" jq -e '[.bar.layout[] | .[] | .id] | map(select(. == "x.me")) | length == 1' "$OMASEITON_CONFIG_FILE" >/dev/null
+
+  # a snapshot that already has it moves it where the snapshot says, with no duplicate
+  bash "$SCRIPT" save mine >/dev/null
+  check "snapshot containing self is kept" jq -e '[.bar.layout.right[].id] | index("x.me") == 1' "$OMASEITON_LAYOUT_DIR/mine.json" >/dev/null
+  bash "$SCRIPT" restore mine >/dev/null
+  check "restore with self present has one copy" jq -e '[.bar.layout[] | .[] | .id] | map(select(. == "x.me")) | length == 1' "$OMASEITON_CONFIG_FILE" >/dev/null
+
+  # when self was on the left, it comes back on the left
+  cat >"$OMASEITON_LIVE_FILE" <<'EOF'
+{"version":1,"bar":{"layout":{"left":[{"id":"a.menu"},{"id":"x.me"}],"center":[],"right":[]}},"plugins":[]}
+EOF
+  cp "$OMASEITON_LIVE_FILE" "$OMASEITON_CONFIG_FILE"
+  printf '{"savedAt":"x","bar":{"layout":{"left":[],"center":[{"id":"a.clock"}],"right":[]}},"plugins":[]}' >"$OMASEITON_LAYOUT_DIR/mine.json"
+  bash "$SCRIPT" restore mine >/dev/null
+  check "self returns to the lane it was in" jq -e '[.bar.layout.left[].id] == ["x.me"]' "$OMASEITON_CONFIG_FILE" >/dev/null
+
+  # if self is nowhere on the bar, it goes to the start of the right lane
+  cat >"$OMASEITON_LIVE_FILE" <<'EOF'
+{"version":1,"bar":{"layout":{"left":[],"center":[],"right":[{"id":"a.tray"}]}},"plugins":[]}
+EOF
+  cp "$OMASEITON_LIVE_FILE" "$OMASEITON_CONFIG_FILE"
+  printf '{"savedAt":"x","bar":{"layout":{"left":[],"center":[],"right":[{"id":"a.power"}]}},"plugins":[]}' >"$OMASEITON_LAYOUT_DIR/mine.json"
+  bash "$SCRIPT" restore mine >/dev/null
+  check "self defaults to the start of the right lane" jq -e '[.bar.layout.right[].id] == ["x.me","a.power"]' "$OMASEITON_CONFIG_FILE" >/dev/null
+
+  # "Omarchy default": a stub `omarchy bar defaults` writes a stock bar that lacks us
+  mkdir -p "$WORK/stub"
+  cat >"$WORK/stub/omarchy" <<'EOF'
+#!/bin/bash
+[[ $1 == bar && $2 == defaults ]] || exit 1
+printf '{"version":1,"bar":{"layout":{"left":[{"id":"a.menu"}],"center":[{"id":"a.clock"}],"right":[{"id":"a.tray"},{"id":"a.power"}]}},"plugins":[]}' >"$OMASEITON_CONFIG_FILE"
+EOF
+  chmod +x "$WORK/stub/omarchy"
+  cat >"$OMASEITON_LIVE_FILE" <<'EOF'
+{"version":1,"bar":{"layout":{"left":[],"center":[{"id":"x.radar"}],"right":[{"id":"a.tray"},{"id":"x.me"}]}},"plugins":[]}
+EOF
+  cp "$OMASEITON_LIVE_FILE" "$OMASEITON_CONFIG_FILE"
+  before=$(find "$OMASEITON_LAYOUT_DIR" -name 'auto-*.json' | wc -l)
+  PATH="$WORK/stub:$PATH" bash "$SCRIPT" defaults >/dev/null
+  check "default keeps self where it was" jq -e '[.bar.layout.right[].id] == ["a.tray","x.me","a.power"]' "$OMASEITON_CONFIG_FILE" >/dev/null
+  check "default removes other third-party widgets" jq -e '[.bar.layout[] | .[] | .id] | index("x.radar") == null' "$OMASEITON_CONFIG_FILE" >/dev/null
+  check "default took a snapshot first" test "$(find "$OMASEITON_LAYOUT_DIR" -name 'auto-*.json' | wc -l)" -gt "$before"
+  newest="$OMASEITON_LAYOUT_DIR/$(bash "$SCRIPT" list | jq -r 'map(select(.slot | startswith("auto-")))[0].slot').json"
+  check "the snapshot still has the removed widget" jq -e '[.bar.layout[] | .[] | .id] | index("x.radar") != null' "$newest" >/dev/null
+
+  export OMASEITON_CONFIG_FILE="$WORK/shell.json"
+  export OMASEITON_LAYOUT_DIR="$WORK/layouts"
+  export OMASEITON_LIVE_FILE="$WORK/live.json"
+  unset OMASEITON_ID
+}
 
 # list
 out="$(bash "$SCRIPT" list)"

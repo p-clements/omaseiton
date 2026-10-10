@@ -5,6 +5,7 @@ The README shows no images beyond the banner yet. The dropdown has to be opened 
 | File | What to capture |
 |---|---|
 | `docs/panel.png` | **Done.** The dropdown content, taken in a test window, not yet in the real popup |
+| `docs/layouts.png` | The Layouts node open, with My layout saved and one or two automatic snapshots |
 | `docs/bar.png` | The bar with the Omaseiton icon highlighted |
 | `docs/themes.png` | The same dropdown under two or three different Omarchy themes, side by side |
 | `preview.png` (repo root) | A tidy crop of `panel.png`. The marketplace picks this up as the listing image |

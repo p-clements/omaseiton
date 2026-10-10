@@ -38,3 +38,6 @@ jobs:
 
       - name: Layout logic tests
         run: node tests/layout.test.js
+
+      - name: Layout script tests
+        run: bash tests/layout-script.test.sh

@@ -9,11 +9,14 @@ import "Layout.js" as Layout
 // collapsible parent and the bar widgets sit underneath it in bar order.
 //
 // On a row, the L / C / R buttons say which lane the widget is in (the current
-// one is filled) and move it to another lane with one click. The up / down
-// arrows reorder inside the lane and appear on the highlighted row.
+// one is filled) and move it to another lane with one click. Two arrows reorder
+// inside the lane, along the bar's own direction (left / right on a horizontal
+// bar, up / down on a vertical one), and appear on the highlighted row.
 //
-// All changes go through the shell's own IPC (the same calls `omarchy bar` and
-// `omarchy plugin` make), one at a time. Omaseiton never writes shell.json.
+// A "Layouts" node saves and restores whole bar layouts. Moves and toggles go
+// through the shell's own IPC (the same calls `omarchy bar` and `omarchy plugin`
+// make), one at a time. Only restoring a layout writes shell.json, and it takes
+// a snapshot first (see scripts/layout.sh).
 Item {
   id: root
 
@@ -33,16 +36,18 @@ Item {
 
   property var config: ({})
   property var plugins: []
-  property var collapsed: ({ available: true })
-  property var rows: Layout.buildRows(config, plugins, selfId, vertical, collapsed)
+  property var collapsed: ({ available: true, layouts: true })
+  property var layouts: []
+  property string armedSlot: ""
+  property var rows: Layout.buildRows(config, plugins, selfId, vertical, collapsed, layouts)
+  readonly property string layoutScript: Qt.resolvedUrl("scripts/layout.sh").toString().replace(/^file:\/\//, "")
   property int cursor: -1
   property var cursorTarget: null
-  property bool resetArmed: false
   property bool busy: false
 
   readonly property int onBarCount: {
     var n = 0
-    for (var i = 0; i < rows.length; i++) if (rows[i].type === "header" && rows[i].section !== "available") n += rows[i].count
+    for (var i = 0; i < rows.length; i++) if (rows[i].type === "header" && laneKeys.indexOf(rows[i].section) >= 0) n += rows[i].count
     return n
   }
   readonly property int availableCount: {
@@ -55,6 +60,7 @@ Item {
   function refresh() {
     if (!configProcess.running) configProcess.running = true
     if (!pluginsProcess.running) pluginsProcess.running = true
+    if (!layoutsProcess.running) layoutsProcess.running = true
   }
 
   Process {
@@ -76,6 +82,18 @@ Item {
       waitForEnd: true
       onStreamFinished: {
         root.plugins = Layout.parseJson(text, root.plugins)
+        root.settleCursor()
+      }
+    }
+  }
+
+  Process {
+    id: layoutsProcess
+    command: ["bash", root.layoutScript, "list"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        root.layouts = Layout.parseJson(text, root.layouts)
         root.settleCursor()
       }
     }
@@ -202,21 +220,33 @@ Item {
     closeRequested()
   }
 
-  function resetLayout() {
-    if (!resetArmed) {
-      resetArmed = true
-      resetTimer.restart()
+  function stamp(iso) {
+    var d = new Date(iso)
+    return isNaN(d.getTime()) ? "" : Qt.formatDateTime(d, "d MMM HH:mm")
+  }
+
+  function saveMine() {
+    run(["bash", layoutScript, "save", "mine"])
+  }
+
+  // Restoring replaces the whole bar, so it takes two presses. The script
+  // snapshots the current layout first, so there is always a way back.
+  function restoreLayout(row) {
+    if (!row.exists) return
+    if (armedSlot !== row.slot) {
+      armedSlot = row.slot
+      armTimer.restart()
       return
     }
-    resetArmed = false
+    armedSlot = ""
     markReopen()
-    run(["omarchy", "bar", "defaults"])
+    run(["bash", layoutScript, row.kind === "default" ? "defaults" : "restore", row.slot])
   }
 
   Timer {
-    id: resetTimer
+    id: armTimer
     interval: 4000
-    onTriggered: root.resetArmed = false
+    onTriggered: root.armedSlot = ""
   }
 
   // ------------------------------------------------------------- pieces
@@ -228,9 +258,10 @@ Item {
     property bool current: false
     property bool dimmed: false
     property bool shown: true
+    property bool urgent: false
     signal clicked()
 
-    implicitWidth: Style.space(22)
+    implicitWidth: label.length > 1 ? Math.max(Style.space(22), chipText.implicitWidth + Style.space(14)) : Style.space(22)
     implicitHeight: Style.space(22)
     width: implicitWidth
     height: implicitHeight
@@ -247,10 +278,11 @@ Item {
       Behavior on color { ColorAnimation { duration: 60 } }
     }
     Text {
+      id: chipText
       anchors.centerIn: parent
       text: chip.label
       textFormat: Text.PlainText
-      color: chip.current ? Color.accent : root.fg
+      color: chip.urgent ? Color.urgent : (chip.current ? Color.accent : root.fg)
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.bold: chip.current
@@ -283,20 +315,32 @@ Item {
       var row = root.rows[root.cursor]
       if (!row) return
       if (row.type === "header") root.setCollapsed(row.section, dx < 0)
-      else if (row.type === "widget") root.moveRow(row, dx < 0 ? "prev" : "next")
+      else if (row.type === "widget") {
+        // Along the bar's own direction: left / right reorders on a horizontal
+        // bar; on a vertical bar those keys change lane instead.
+        if (root.vertical) root.moveRow(row, dx < 0 ? "prev" : "next")
+        else root.moveRow(row, dx < 0 ? "up" : "down")
+      }
     }
     onActivateRequested: {
       var row = root.rows[root.cursor]
       if (!row) return
       if (row.type === "header") root.toggleCollapse(row.section)
+      else if (row.type === "layout") root.restoreLayout(row)
       else root.toggleRow(row)
     }
     onTextKey: function(t) {
       var row = root.rows[root.cursor]
       if (!row || row.type === "header") return
+      if (row.type === "layout") {
+        if (t === "s" && row.kind === "mine") root.saveMine()
+        return
+      }
       if (t === "1" || t === "2" || t === "3") root.sendToLane(row, Number(t) - 1)
-      else if (row.type === "widget" && t === "K") root.moveRow(row, "up")
-      else if (row.type === "widget" && t === "J") root.moveRow(row, "down")
+      else if (row.type === "widget" && root.vertical && t === "K") root.moveRow(row, "up")
+      else if (row.type === "widget" && root.vertical && t === "J") root.moveRow(row, "down")
+      else if (row.type === "widget" && !root.vertical && t === "H") root.moveRow(row, "up")
+      else if (row.type === "widget" && !root.vertical && t === "L") root.moveRow(row, "down")
     }
 
     Column {
@@ -323,7 +367,7 @@ Item {
         width: parent.width
         textFormat: Text.PlainText
         wrapMode: Text.WordWrap
-        text: root.laneLetters.join(" ") + " pick the lane · ▲ ▼ reorder within it · click a lane name to fold it"
+        text: root.laneLetters.join(" ") + " pick the lane · " + (root.vertical ? "▲ ▼" : "◀ ▶") + " reorder · click a lane name to fold it"
         color: root.dim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
@@ -347,6 +391,7 @@ Item {
           readonly property bool isHeader: modelData.type === "header"
           readonly property bool isAvailable: modelData.type === "available"
           readonly property bool isWidget: modelData.type === "widget"
+          readonly property bool isLayout: modelData.type === "layout"
           readonly property bool hot: root.cursor === index
           readonly property int laneIndex: isWidget ? root.laneKeys.indexOf(modelData.section) : -1
 
@@ -447,6 +492,11 @@ Item {
                   text: {
                     if (delegateRoot.isHeader) return ""
                     var m = delegateRoot.modelData
+                    if (delegateRoot.isLayout) {
+                      if (m.note) return m.note
+                      var when = root.stamp(m.savedAt)
+                      return (when ? when + " · " : "") + m.widgets + " widgets"
+                    }
                     var note = m.isSelf ? "this widget" : (m.firstParty ? "built-in" : "plugin")
                     if (m.clonedFrom) note += " · clone of " + m.clonedFrom
                     return m.id + " · " + note
@@ -465,7 +515,7 @@ Item {
                 // reorder inside the lane: only on the highlighted row
                 Chip {
                   visible: delegateRoot.isWidget
-                  label: "▲"
+                  label: root.vertical ? "▲" : "◀"
                   shown: delegateRoot.hot
                   enabled: delegateRoot.hot && delegateRoot.isWidget && delegateRoot.modelData.index > 0
                   dimmed: delegateRoot.hot && !enabled
@@ -473,7 +523,7 @@ Item {
                 }
                 Chip {
                   visible: delegateRoot.isWidget
-                  label: "▼"
+                  label: root.vertical ? "▼" : "▶"
                   shown: delegateRoot.hot
                   enabled: delegateRoot.hot && delegateRoot.isWidget
                     && delegateRoot.modelData.index < delegateRoot.modelData.sectionSize - 1
@@ -484,8 +534,23 @@ Item {
                 Item { width: Style.space(4); height: 1; visible: delegateRoot.isWidget }
 
                 // lane picker: the current lane is filled, the others move it there
+                Chip {
+                  visible: delegateRoot.isLayout && delegateRoot.modelData.kind === "mine"
+                  label: "Save"
+                  onClicked: root.saveMine()
+                }
+                Chip {
+                  visible: delegateRoot.isLayout
+                  label: root.armedSlot === delegateRoot.modelData.slot ? "Sure?"
+                    : (delegateRoot.modelData.kind === "default" ? "Reset" : "Restore")
+                  urgent: root.armedSlot === delegateRoot.modelData.slot
+                  enabled: delegateRoot.isLayout && delegateRoot.modelData.exists
+                  dimmed: delegateRoot.isLayout && !delegateRoot.modelData.exists
+                  onClicked: root.restoreLayout(delegateRoot.modelData)
+                }
+
                 Repeater {
-                  model: 3
+                  model: delegateRoot.isLayout ? 0 : 3
                   Chip {
                     required property int index
                     label: root.laneLetters[index]
@@ -494,14 +559,15 @@ Item {
                   }
                 }
 
-                Item { width: Style.space(4); height: 1 }
+                Item { width: Style.space(4); height: 1; visible: !delegateRoot.isLayout }
 
                 ToggleSwitch {
+                  visible: !delegateRoot.isLayout
                   anchors.verticalCenter: parent.verticalCenter
                   cursorRing: false
                   trackHeight: Style.space(18)
                   checked: !delegateRoot.isAvailable
-                  opacity: delegateRoot.isAvailable || delegateRoot.modelData.canDisable ? 1 : 0.35
+                  opacity: delegateRoot.isAvailable || delegateRoot.isLayout || delegateRoot.modelData.canDisable ? 1 : 0.35
                   foreground: root.fg
                   onToggled: root.toggleRow(delegateRoot.modelData)
                 }
@@ -541,13 +607,6 @@ Item {
           tooltipText: "Update installed git plugins"
           foreground: root.fg
           onClicked: root.terminal("omarchy-plugin-update")
-        }
-        Button {
-          iconText: "↺"
-          text: root.resetArmed ? "Sure?" : "Reset"
-          tooltipText: "Restore the default bar layout (click twice)"
-          foreground: root.resetArmed ? Color.urgent : root.fg
-          onClicked: root.resetLayout()
         }
       }
     }

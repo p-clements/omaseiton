@@ -32,21 +32,21 @@ const plugins = [
 // buildRows: headers, order, available, names, self protection
 {
   const rows = L.buildRows(config, plugins, "x.deck", false)
-  assert.deepEqual(rows.filter(r => r.type === "header").map(r => r.label), ["Left", "Center", "Right", "Available"])
+  assert.deepEqual(rows.filter(r => r.type === "header").map(r => r.label), ["Left", "Center", "Right", "Available", "Layouts"])
   assert.deepEqual(rows.filter(r => r.type === "widget" && r.section === "center").map(r => r.name), ["Clock", "Radar"])
   const avail = rows.filter(r => r.type === "available").map(r => r.id)
   assert.deepEqual(avail, ["a.spare", "x.deck"], "services and placed widgets are not listed as available")
   assert.equal(rows.find(r => r.id === "x.radar").firstParty, false)
   assert.equal(L.buildRows(config, plugins, "a.clock", false).find(r => r.id === "a.clock").canDisable, false)
   assert.deepEqual(L.buildRows(config, plugins, "", true).filter(r => r.type === "header").map(r => r.label),
-    ["Start", "Center", "End", "Available"])
+    ["Start", "Center", "End", "Available", "Layouts"])
 }
 
 // buildRows: unknown ids fall back to the id, empty config is safe
 {
   const rows = L.buildRows({ bar: { layout: { left: [{ id: "ghost.widget" }] } } }, [], "", false)
   assert.equal(rows.find(r => r.type === "widget").name, "ghost.widget")
-  assert.equal(L.buildRows(null, null, "", false).filter(r => r.type === "header").length, 4)
+  assert.equal(L.buildRows(null, null, "", false).filter(r => r.type === "header").length, 5)
 }
 
 // computeMove
@@ -102,6 +102,32 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
   const last = rows.length - 1
   assert.equal(L.stepCursor(rows, last, 1), last)
   assert.equal(L.stepCursor(rows, 3, 1), 4)
+}
+
+// Layouts node: stock + mine + automatic snapshots
+{
+  const none = L.buildLayoutRows([], {})
+  assert.deepEqual(none.map(r => r.type + ":" + (r.slot || r.section)),
+    ["header:layouts", "layout:omarchy-default", "layout:mine"])
+  assert.equal(none[2].exists, false)
+  assert.equal(none[2].note, "not saved yet")
+  const some = L.buildLayoutRows([
+    { slot: "auto-20260101-000002", savedAt: "b", widgets: 3 },
+    { slot: "mine", savedAt: "a", widgets: 20 },
+    { slot: "auto-20260101-000001", savedAt: "c", widgets: 4 },
+    { slot: "stray", savedAt: "d", widgets: 1 }
+  ], {})
+  assert.deepEqual(some.map(r => r.slot || r.section),
+    ["layouts", "omarchy-default", "mine", "auto-20260101-000002", "auto-20260101-000001"],
+    "unknown slots are ignored, input order of autos is kept")
+  assert.equal(some[0].count, 4)
+  assert.equal(some[2].exists, true)
+  assert.equal(some[2].widgets, 20)
+  assert.equal(L.buildLayoutRows(some, { layouts: true }).length, 1, "folded: header only")
+  const all = L.buildRows(config, plugins, "x.deck", false, {}, [{ slot: "mine", savedAt: "a", widgets: 5 }])
+  assert.equal(all[all.length - 3].type, "header", "layouts come after the available list")
+  assert.equal(all[all.length - 1].type, "layout")
+  assert.equal(L.buildLayoutRows(null, null).length, 3, "bad input is safe")
 }
 
 assert.deepEqual(L.parseJson("{bad", []), [])

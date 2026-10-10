@@ -31,11 +31,12 @@ More screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 |---|---|
 | **A small tree** | Each lane is a foldable node with its widgets nested underneath, in bar order, with the plugin id and whether it is built in, a plugin or a clone. |
 | **Change lane** | Every row has **L C R** buttons (**S C E** on a vertical bar). The current lane is filled in; click another to move the widget there. |
-| **Reorder** | Highlight a row and use its **▲ ▼** buttons to move it earlier or later inside its lane. |
+| **Reorder** | Highlight a row and use its **◀ ▶** buttons to move it earlier or later inside its lane. They point the way the widget moves on the bar, and become **▲ ▼** on a vertical bar. |
 | **Toggle** | Switch a widget off the bar, or switch an available one on. In the Available list the **L C R** buttons switch it on in that lane. |
 | **Native look** | Built from Omarchy's own UI components and theme colours, so it follows `omarchy theme set` automatically. |
 | **Keyboard first** | `j`/`k` move the cursor, `h`/`l` change lane, `Shift+J`/`Shift+K` reorder, `Space` toggles, `Esc` closes. |
-| **Plugin shortcuts** | Browse the [Omarchy marketplace](https://plugins.omarchy.org), add a plugin from a git URL, update your git plugins, or reset the layout. |
+| **Layouts** | Save your bar as **My layout** and bring it back later, or return to the stock **Omarchy default**. A snapshot is taken automatically before every restore, so a restore can always be undone. |
+| **Plugin shortcuts** | Browse the [Omarchy marketplace](https://plugins.omarchy.org), add a plugin from a git URL, or update your git plugins. |
 
 ## Install
 
@@ -59,22 +60,25 @@ omarchy plugin remove pclements.omaseiton
 |---|---|
 | `j` / `k` or `↓` / `↑` | Move the highlight |
 | `1` / `2` / `3` | Send the highlighted widget to the left / center / right lane |
-| `h` / `l` or `←` / `→` | On a widget: move it to the previous or next lane. On a lane: fold or unfold it |
-| `Shift+K` / `Shift+J` | Move the highlighted widget earlier or later in its lane |
-| `Space` / `Enter` | On a widget: switch it off (or on, in Available). On a lane: fold or unfold it |
+| `h` / `l` or `←` / `→` | On a widget: move it earlier or later along the bar. On a lane: fold or unfold it |
+| `Space` / `Enter` | On a widget: switch it off (or on, in Available). On a lane: fold or unfold it. On a layout: restore it (press twice) |
+| `s` | On **My layout**: save the current bar |
 | `Esc` | Close |
 
 ## How it works, and what it touches
 
-Omaseiton never edits `shell.json` itself. Every change goes through the same shell calls the `omarchy bar` and `omarchy plugin` commands use:
+Moving and switching widgets never edits `shell.json` directly. Those changes go through the same shell calls the `omarchy bar` and `omarchy plugin` commands use:
 
 | Action | Call |
 |---|---|
 | Reorder / change lane | `omarchy-shell shell moveBarWidget <id> <placement>` |
 | Switch off | `omarchy-shell shell setPluginEnabled <id> false` |
 | Switch on | `omarchy-shell shell enablePlugin <id> {}` |
-| Reset layout | `omarchy bar defaults` (needs a second click to confirm) |
 | Browse / Add / Update | `omarchy-launch-webapp`, `omarchy-plugin-add`, `omarchy-plugin-update` |
+
+**Restoring a layout is the one thing that writes `shell.json`**, and only when you press Restore (or Reset on "Omarchy default") twice. It works the way `omarchy bar` does: the file is replaced atomically, then the shell reloads it. Before anything is replaced, [`scripts/layout.sh`](scripts/layout.sh) saves a snapshot of the current layout to `~/.config/omaseiton/layouts/`, keeping the last five. If that snapshot fails, nothing is restored.
+
+"Omarchy default" runs `omarchy bar defaults`, which puts the stock bar back and takes your own widgets (and their settings, such as the tray pin) off it. The snapshot taken first is what lets you get them back.
 
 Things worth knowing:
 
@@ -87,7 +91,8 @@ Things worth knowing:
 ## Develop
 
 ```bash
-node tests/layout.test.js          # layout logic, no Quickshell needed
+node tests/layout.test.js          # row and move logic, no Quickshell needed
+bash tests/layout-script.test.sh   # layout save / restore, against temp files
 omarchy plugin validate .          # manifest check
 ```
 
@@ -95,8 +100,8 @@ The layout and move logic lives in [`Layout.js`](Layout.js) and is tested on its
 
 ## Roadmap
 
+- Named layouts beyond "My layout"
 - Per-widget settings from each plugin's declared schema
-- Undo for layout changes
 - Clone, open folder and remove actions per row
 - "Update available" badges
 - Drag and drop (Omarchy's bar already supports dragging icons directly)

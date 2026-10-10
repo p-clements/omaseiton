@@ -2,12 +2,19 @@
   "schemaVersion": 1,
   "id": "pclements.omaseiton",
   "name": "Omaseiton",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "pclements",
   "license": "MIT",
-  "description": "Everything in its place on your Omarchy bar: see every widget by lane, reorder, move, toggle and discover plugins.",
-  "keywords": ["bar", "plugins", "manager", "layout"],
-  "kinds": ["bar-widget"],
+  "description": "Everything in its place on your Omarchy bar: see every widget by lane, reorder, move, toggle, and save or restore whole layouts.",
+  "keywords": [
+    "bar",
+    "plugins",
+    "manager",
+    "layout"
+  ],
+  "kinds": [
+    "bar-widget"
+  ],
   "entryPoints": {
     "barWidget": "BarWidget.qml"
   },

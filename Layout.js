@@ -29,7 +29,7 @@ function isBarWidget(plugin) {
 // Flat list of rows for the panel: a header per section, a widget row per
 // bar entry (in bar order), then an "available" header and one row per
 // bar-widget plugin that is not currently placed on the bar.
-function buildRows(config, plugins, selfId, vertical, collapsed) {
+function buildRows(config, plugins, selfId, vertical, collapsed, layouts) {
   collapsed = collapsed || {}
   var layout = (config && config.bar && config.bar.layout) || {}
   var byId = pluginIndex(plugins || [])
@@ -76,6 +76,30 @@ function buildRows(config, plugins, selfId, vertical, collapsed) {
       firstParty: !!available[k].firstParty,
       clonedFrom: available[k].clonedFrom || ""
     })
+  }
+  return rows.concat(buildLayoutRows(layouts, collapsed))
+}
+
+// The "Layouts" node: the stock Omarchy bar, the user's own saved layout, and
+// the automatic snapshots taken before each restore (newest first).
+function buildLayoutRows(layouts, collapsed) {
+  collapsed = collapsed || {}
+  var saved = Array.isArray(layouts) ? layouts : []
+  var mine = null
+  var autos = []
+  for (var i = 0; i < saved.length; i++) {
+    if (saved[i].slot === "mine") mine = saved[i]
+    else if (String(saved[i].slot).indexOf("auto-") === 0) autos.push(saved[i])
+  }
+  var rows = [{ type: "header", section: "layouts", label: "Layouts", count: 2 + autos.length, collapsed: !!collapsed.layouts }]
+  if (collapsed.layouts) return rows
+  rows.push({ type: "layout", slot: "omarchy-default", kind: "default", name: "Omarchy default",
+    note: "the stock bar. Your own widgets are taken off it", savedAt: "", widgets: 0, exists: true })
+  rows.push({ type: "layout", slot: "mine", kind: "mine", name: "My layout",
+    note: mine ? "" : "not saved yet", savedAt: mine ? mine.savedAt : "", widgets: mine ? mine.widgets : 0, exists: !!mine })
+  for (var k = 0; k < autos.length; k++) {
+    rows.push({ type: "layout", slot: autos[k].slot, kind: "auto", name: "Before a restore",
+      note: "", savedAt: autos[k].savedAt, widgets: autos[k].widgets, exists: true })
   }
   return rows
 }
@@ -151,7 +175,7 @@ function stepCursor(rows, from, dir) {
 
 if (typeof module !== "undefined") {
   module.exports = {
-    SECTIONS: SECTIONS, parseJson: parseJson, buildRows: buildRows, computeMove: computeMove,
+    SECTIONS: SECTIONS, parseJson: parseJson, buildRows: buildRows, buildLayoutRows: buildLayoutRows, computeMove: computeMove,
     findRow: findRow, stepCursor: stepCursor
   }
 }

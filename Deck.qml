@@ -124,15 +124,30 @@ Item {
 
   // Folding or unfolding a lane the user is looking at. Changing the rows
   // replaces the list's contents, and Qt then resets the view to the top, which
-  // loses the lane when it is far down (Right, Available, Layouts). Once the
-  // list has rebuilt, put the highlight back on the lane and scroll to it.
+  // loses the lane when it is far down (Right, Available, Layouts). That reset
+  // is applied when the list next lays out, after any code that runs straight
+  // away, so force the layout first and then scroll to the lane. A second pass
+  // a moment later covers a reset that still lands after that.
   function foldLane(section, value) {
     setCollapsed(section, value)
-    Qt.callLater(function() {
-      var at = Layout.findRow(rows, { header: section })
-      if (at >= 0) cursor = at
-      revealCursor()
-    })
+    Qt.callLater(function() { settleFold(section) })
+    foldReveal.section = section
+    foldReveal.restart()
+  }
+
+  function settleFold(section) {
+    var at = Layout.findRow(rows, { header: section })
+    if (at >= 0) cursor = at
+    list.forceLayout()
+    // Lane at the top, so an unfolded lane shows its widgets beneath it.
+    if (cursor >= 0 && cursor < rows.length) list.positionViewAtIndex(cursor, ListView.Beginning)
+  }
+
+  Timer {
+    id: foldReveal
+    property string section: ""
+    interval: 60
+    onTriggered: root.settleFold(section)
   }
 
   function toggleCollapse(section) {

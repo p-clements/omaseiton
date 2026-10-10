@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="Omadeck: a deck for your Omarchy bar" width="100%">
+  <img src="assets/banner.svg" alt="Omaseiton: everything in its place on your Omarchy bar" width="100%">
 </p>
 
 <p align="center">
@@ -13,9 +13,13 @@
 
 ---
 
+## The name
+
+**Omaseiton** is *Omarchy* + **整頓 (seiton)**, the Japanese word for putting things in order. It is the second of the 5S workplace principles: "a place for everything, and everything in its place."
+
 ## What it is
 
-Omadeck is a bar widget for the [Omarchy](https://omarchy.org) shell. Click its icon and a dropdown lists every widget on your bar, split into **Left**, **Center** and **Right** lanes, followed by the bar widgets you have installed but switched off.
+Omaseiton is a bar widget for the [Omarchy](https://omarchy.org) shell. Click its icon and a dropdown lists every widget on your bar, split into **Left**, **Center** and **Right** lanes, followed by the bar widgets you have installed but switched off.
 
 > Screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 
@@ -32,17 +36,17 @@ Omadeck is a bar widget for the [Omarchy](https://omarchy.org) shell. Click its 
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/<you>/omadeck.git --enable
+omarchy plugin add https://github.com/<you>/omaseiton.git --enable
 ```
 
 Then look for the puzzle-piece icon on your bar.
 
-To install from a local clone while developing, copy the repo into `~/.config/omarchy/plugins/pclements.omadeck/`, then run `omarchy-shell shell rescanPlugins` and enable it with `omarchy plugin enable pclements.omadeck`.
+To install from a local clone while developing, copy the repo into `~/.config/omarchy/plugins/pclements.omaseiton/`, then run `omarchy-shell shell rescanPlugins` and enable it with `omarchy plugin enable pclements.omaseiton`.
 
 ## Remove
 
 ```bash
-omarchy plugin remove pclements.omadeck
+omarchy plugin remove pclements.omaseiton
 ```
 
 ## Keys
@@ -57,7 +61,7 @@ omarchy plugin remove pclements.omadeck
 
 ## How it works, and what it touches
 
-Omadeck never edits `shell.json` itself. Every change goes through the same shell calls the `omarchy bar` and `omarchy plugin` commands use:
+Omaseiton never edits `shell.json` itself. Every change goes through the same shell calls the `omarchy bar` and `omarchy plugin` commands use:
 
 | Action | Call |
 |---|---|
@@ -69,9 +73,9 @@ Omadeck never edits `shell.json` itself. Every change goes through the same shel
 
 Things worth knowing:
 
-- **Switching a widget off removes its entry from the layout**, including inline settings such as the clock format. Omarchy does this, not Omadeck. Switching it back on gives you the defaults.
-- **The bar rebuilds after every change.** Omadeck leaves a small marker file in `~/.local/state/omadeck/` so the new instance reopens the dropdown. The marker is deleted straight away.
-- Omadeck will not offer to switch itself off.
+- **Switching a widget off removes its entry from the layout**, including inline settings such as the clock format. Omarchy does this, not Omaseiton. Switching it back on gives you the defaults.
+- **The bar rebuilds after every change.** Omaseiton leaves a small marker file in `~/.local/state/omaseiton/` so the new instance reopens the dropdown. The marker is deleted straight away.
+- Omaseiton will not offer to switch itself off.
 - It does not use `sudo`, `systemctl`, the network, or bundled binaries.
 
 ## Develop

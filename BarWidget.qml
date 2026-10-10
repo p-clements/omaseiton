@@ -11,7 +11,7 @@ BarWidget {
   property bool opened: false
   property bool popoutSwitchClosing: false
 
-  readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/omadeck"
+  readonly property string stateDir: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state")) + "/omaseiton"
   readonly property string reopenFlag: stateDir + "/reopen"
 
   function open() {
@@ -22,7 +22,7 @@ BarWidget {
   function closeForPopoutSwitch() { popoutSwitchClosing = true; close() }
 
   // Moving or toggling a widget rebuilds the whole bar, destroying this
-  // instance mid-use. Deck leaves a fresh flag file before each change; the
+  // instance mid-use. Panel leaves a fresh flag file before each change; the
   // replacement instance sees it and reopens straight away.
   Process {
     id: reopenCheck

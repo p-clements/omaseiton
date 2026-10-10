@@ -26,7 +26,7 @@ const plugins = [
   { id: "a.tray", name: "Tray", kinds: ["bar-widget"], firstParty: true, canDisable: true },
   { id: "a.battery", name: "Battery", kinds: ["service"], firstParty: true, canDisable: true },
   { id: "a.spare", name: "Spare", kinds: ["bar-widget"], firstParty: true, canDisable: true },
-  { id: "x.deck", name: "Omadeck", kinds: ["bar-widget"], firstParty: false, canDisable: true }
+  { id: "x.deck", name: "Omaseiton", kinds: ["bar-widget"], firstParty: false, canDisable: true }
 ]
 
 // buildRows: headers, order, available, names, self protection

@@ -5,11 +5,11 @@ import qs.Ui
 import qs.Commons
 import "Layout.js" as Layout
 
-// The Omadeck dropdown: every bar widget grouped by lane, with reorder,
+// The Omaseiton dropdown: every bar widget grouped by lane, with reorder,
 // lane-jump and on/off controls, plus shortcuts to the plugin ecosystem.
 //
 // All changes go through the shell's own IPC (the same calls `omarchy bar`
-// and `omarchy plugin` make), one at a time. Omadeck never writes shell.json.
+// and `omarchy plugin` make), one at a time. Omaseiton never writes shell.json.
 Item {
   id: root
 
@@ -118,7 +118,7 @@ Item {
     }
   }
 
-  // Mutations rebuild every bar widget, Omadeck included. Leave a breadcrumb
+  // Mutations rebuild every bar widget, Omaseiton included. Leave a breadcrumb
   // so the fresh instance reopens the dropdown instead of vanishing.
   function markReopen() {
     run(["mkdir", "-p", stateDir])
@@ -205,7 +205,7 @@ Item {
 
       PanelHero {
         id: hero
-        title: "Omadeck"
+        title: "Omaseiton"
         meta: root.onBarCount + " on the bar · " + root.availableCount + " available"
         foreground: root.fg
         iconComponent: Component {

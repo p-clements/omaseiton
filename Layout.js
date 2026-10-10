@@ -1,6 +1,6 @@
 .pragma library
 
-// Pure layout logic for Omadeck. No QML or Quickshell imports, so it runs
+// Pure layout logic for Omaseiton. No QML or Quickshell imports, so it runs
 // under plain node for tests (see tests/layout.test.js).
 
 var SECTIONS = ["left", "center", "right"]

@@ -122,8 +122,21 @@ Item {
       "sh", stateDir, JSON.stringify(next)])
   }
 
+  // Folding or unfolding a lane the user is looking at. Changing the rows
+  // replaces the list's contents, and Qt then resets the view to the top, which
+  // loses the lane when it is far down (Right, Available, Layouts). Once the
+  // list has rebuilt, put the highlight back on the lane and scroll to it.
+  function foldLane(section, value) {
+    setCollapsed(section, value)
+    Qt.callLater(function() {
+      var at = Layout.findRow(rows, { header: section })
+      if (at >= 0) cursor = at
+      revealCursor()
+    })
+  }
+
   function toggleCollapse(section) {
-    setCollapsed(section, !(collapsed && collapsed[section]))
+    foldLane(section, !(collapsed && collapsed[section]))
   }
 
   // The bar rebuilds after every change, which destroys this panel and builds
@@ -432,10 +445,10 @@ Item {
         cursor = Layout.parentHeader(rows, cursor)
         revealCursor()
         break
-      case "fold": setCollapsed(row.section, action.value); break
+      case "fold": foldLane(row.section, action.value); break
       case "foldToggle": toggleCollapse(row.section); break
       case "unfold":
-        if (row.collapsed) setCollapsed(row.section, false)
+        if (row.collapsed) foldLane(row.section, false)
         else if (cursor + 1 < rows.length && rows[cursor + 1].type !== "header") {
           cursor = cursor + 1
           revealCursor()

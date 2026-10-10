@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "pclements.omadeck",
+  "name": "Omadeck",
+  "version": "0.1.0",
+  "author": "pclements",
+  "license": "MIT",
+  "description": "A deck for your Omarchy bar: see every widget by lane, reorder, move, toggle and discover plugins.",
+  "keywords": ["bar", "plugins", "manager", "layout"],
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omadeck",
+    "description": "Manage your bar widgets and plugins from one dropdown",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

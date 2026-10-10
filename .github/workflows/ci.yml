@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Manifest is valid JSON with the required fields
+        run: |
+          jq -e '
+            .schemaVersion == 1
+            and (.id | test("^[A-Za-z0-9][A-Za-z0-9._-]*$"))
+            and (.id | startswith("omarchy.") | not)
+            and (.name | length > 0)
+            and (.version | length > 0 and length <= 64)
+            and (.author | length > 0)
+            and (.description | length > 0)
+            and (.kinds | length > 0)
+            and (.entryPoints | type == "object")
+          ' manifest.json
+
+      - name: Entry points exist
+        run: |
+          for f in $(jq -r '.entryPoints[]' manifest.json); do
+            test -f "$f" || { echo "missing entry point: $f"; exit 1; }
+          done
+
+      - name: No symlinks in the repo
+        run: |
+          if find . -path ./.git -prune -o -type l -print | grep -q .; then
+            echo "symlinks are not allowed in plugins"; exit 1
+          fi
+
+      - name: Layout logic tests
+        run: node tests/layout.test.js

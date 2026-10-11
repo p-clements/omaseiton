@@ -131,6 +131,8 @@ check "refused saves leave the snapshot untouched" cmp -s "$M" "$SCEN/mine.befor
 fresh restore
 write_live
 write_config
+jq '.version = 42' "$OMASEITON_CONFIG_FILE" >"$SCEN/version.json"
+mv "$SCEN/version.json" "$OMASEITON_CONFIG_FILE"
 run save mine >/dev/null
 M="$OMASEITON_LAYOUT_DIR/mine.json"
 # a hostile snapshot: tries to switch the bar plugin, enable a plugin, and smuggle keys in
@@ -145,6 +147,7 @@ check "restore ignores a hostile bar.id" jq_ok "$C" '.bar.id != "evil.bar"'
 check "restore keeps the plugins list as it was" jq_ok "$C" '.plugins == [{"id":"keep.plugin","setting":1}]'
 check "restore keeps disabledPlugins" jq_ok "$C" '.disabledPlugins == ["old.plugin"]'
 check "restore keeps unrelated settings" jq_ok "$C" '.idle.lock == 300'
+check "restore keeps the config version" jq_ok "$C" '.version == 42'
 check "restore leaves an automatic snapshot of what was live" test "$(slots | grep -c '^auto-')" -eq 1
 check "that snapshot says why" jq_ok "$OMASEITON_LAYOUT_DIR/$(newest_auto).json" '.reason == "restore"'
 check "an odd extra key under bar.layout does not break restore" jq_ok "$C" '.bar.layout | has("left")'

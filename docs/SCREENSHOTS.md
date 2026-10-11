@@ -1,6 +1,6 @@
 # Screenshots
 
-The README shows no images beyond the banner yet. The dropdown has to be opened on a real Omarchy desktop to capture it, so these are still to take. Save each as a PNG in `docs/` and reference it from the README.
+The README includes the panel and layouts renders below. They were rendered in a test window at the real popup size. Live desktop and additional theme screenshots remain optional follow-ups.
 
 | File                      | What to capture                                                                                                                                 |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |

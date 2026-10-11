@@ -51,7 +51,7 @@ jobs:
         run: shellcheck scripts/*.sh tests/*.sh assets/src/*.sh
 
       - name: Formatting
-        run: npx --yes prettier@3.3.3 --check .
+        run: npx --yes prettier@3.9.10 --check .
 
       - name: Marketplace manifest rules and security baseline (the marketplace's own code, pinned)
         run: bash tests/marketplace.sh

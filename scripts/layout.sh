@@ -157,8 +157,7 @@ apply_bar() {
     fail "cannot write next to $real; your bar is unchanged"
   }
   if ! jq -S --argjson saved "$saved" --arg id "$SELF_ID" --argjson spot "$spot" \
-    "$JQ_ENSURE .version = 1
-      | .bar = (((.bar // {}) | del(.position, .transparent, .centerAnchor, .layout)) + (\$saved.bar | $JQ_BAR_SUBSET))
+    "$JQ_ENSURE .bar = (((.bar // {}) | del(.position, .transparent, .centerAnchor, .layout)) + (\$saved.bar | $JQ_BAR_SUBSET))
       | ensure(\$id; \$spot)" "$real" >"$tmp" 2>/dev/null; then
     rm -f "$tmp" "$LAYOUT_DIR/$snap.json"
     fail "could not apply the layout; your bar is unchanged"

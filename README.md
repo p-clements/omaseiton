@@ -31,7 +31,7 @@ Omaseiton is a bar plugin for the [Omarchy](https://omarchy.org) shell. Click it
 <p align="center"><sub>Left: lanes as a tree, with the buttons for the highlighted row. Right: saving and restoring whole layouts.</sub></p>
 
 <p align="center">
-  <img src="docs/bar.png" alt="The live Omarchy bar with the Omaseiton puzzle-piece icon" width="100%">
+  <img src="docs/bar.png" alt="The live Omarchy bar with the Omaseiton open-circle-and-lanes emblem" width="100%">
   <img src="docs/themes.png" alt="Omaseiton in Tokyo Night and Catppuccin Latte" width="792">
 </p>
 
@@ -54,7 +54,7 @@ Screenshot details are in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 omarchy plugin add https://github.com/p-clements/omaseiton.git --enable
 ```
 
-Then look for the puzzle-piece icon on your bar.
+Then look for the open-circle-and-lanes emblem on your bar.
 
 To try a local copy while developing, copy the files into `~/.config/omarchy/plugins/io.github.p-clements.omaseiton/`, run `omarchy-shell shell rescanPlugins`, and enable it with `omarchy plugin enable io.github.p-clements.omaseiton`.
 

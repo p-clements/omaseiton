@@ -567,11 +567,10 @@ Item {
         meta: root.onBarCount + " on the bar · " + root.availableCount + " available"
         foreground: root.fg
         iconComponent: Component {
-          Text {
-            text: String.fromCodePoint(0xF0431)
-            color: Color.accent
-            font.family: Style.font.family
-            font.pixelSize: Style.font.display
+          Emblem {
+            width: Style.font.display
+            height: width
+            foreground: Color.accent
           }
         }
       }

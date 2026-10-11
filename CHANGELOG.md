@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replace the generic puzzle-piece icon with a theme-aware vector emblem matching the project artwork
+
 - Keep saved layout contents, including private inline plugin settings, out of process arguments during restore; read them through stdin instead
 - Complete the screenshot gallery and refresh panel, layout and marketplace preview images
 

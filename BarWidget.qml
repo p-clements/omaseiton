@@ -59,7 +59,11 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: String.fromCodePoint(0xF0431)
+    iconComponent: Component {
+      Emblem {
+        foreground: button.active && button.useActiveColor ? button.activeColor : button.foreground
+      }
+    }
     active: root.opened
     onPressed: b => {
       if (b !== Qt.LeftButton) return

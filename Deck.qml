@@ -806,7 +806,7 @@ Item {
                   trackHeight: Style.space(18)
                   checked: !delegateRoot.isAvailable
                   busy: root.working
-                  interactive: delegateRoot.isAvailable || delegateRoot.modelData.canDisable
+                  interactive: delegateRoot.isAvailable || !!delegateRoot.modelData.canDisable
                   opacity: delegateRoot.isAvailable || delegateRoot.modelData.canDisable ? 1 : 0.35
                   foreground: root.fg
                   onToggled: root.toggleRow(delegateRoot.modelData)

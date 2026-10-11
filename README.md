@@ -30,7 +30,12 @@ Omaseiton is a bar plugin for the [Omarchy](https://omarchy.org) shell. Click it
 
 <p align="center"><sub>Left: lanes as a tree, with the buttons for the highlighted row. Right: saving and restoring whole layouts.</sub></p>
 
-More screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
+<p align="center">
+  <img src="docs/bar.png" alt="The live Omarchy bar with the Omaseiton puzzle-piece icon" width="100%">
+  <img src="docs/themes.png" alt="Omaseiton in Tokyo Night and Catppuccin Latte" width="792">
+</p>
+
+Screenshot details are in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 
 |                      |                                                                                                                                                                                                                                                                                                                                     |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -36,7 +36,7 @@ More screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 | **Native look** | Built from Omarchy's own UI components and theme colours, so it follows `omarchy theme set` automatically. |
 | **Keyboard first** | Arrows move the highlight, `Shift`+arrows move the widget, `1` `2` `3` pick a lane, `Space` toggles. See [Keys](#keys). |
 | **Layouts** | Save your bar as **My layout** and bring it back later, or return to the stock **Omarchy default**. A snapshot is taken automatically before every restore, so a restore can always be undone. |
-| **Plugin shortcuts** | Browse the [Omarchy marketplace](https://plugins.omarchy.org), add a plugin from a git URL, or update your git plugins. |
+| **Plugin shortcuts** | Browse the [Omarchy marketplace](https://plugins.omarchy.org), add a plugin from a git URL, or check your git plugins for updates. **Update** shows a short summary per plugin (new commits and a one-line stat, not a raw diff) and asks before applying; the update itself is done by `omarchy-plugin-update`, so its safety checks and rollback still apply. |
 
 ## Install
 
@@ -87,7 +87,8 @@ Moving and switching widgets never edits `shell.json` directly. Those changes go
 | Reorder / change lane | `omarchy-shell shell moveBarWidget <id> <placement>` |
 | Switch off | `omarchy-shell shell setPluginEnabled <id> false` |
 | Switch on | `omarchy-shell shell enablePlugin <id> {}` |
-| Browse / Add / Update | `omarchy-launch-webapp`, `omarchy-plugin-add`, `omarchy-plugin-update` |
+| Browse / Add | `omarchy-launch-webapp`, `omarchy-plugin-add` |
+| Update | [`scripts/update.sh`](scripts/update.sh), which calls `omarchy-plugin-update <id> --yes` only after you say yes |
 
 **Restoring a layout is the one thing that writes `shell.json`**, and only when you press Restore (or Reset on "Omarchy default") twice. It works the way `omarchy bar` does: the file is replaced atomically, then the shell reloads it. Before anything is replaced, [`scripts/layout.sh`](scripts/layout.sh) saves a snapshot of the current layout to `~/.config/omaseiton/layouts/`, keeping the last five. If that snapshot fails, nothing is restored.
 
@@ -108,6 +109,7 @@ Things worth knowing:
 ```bash
 node tests/layout.test.js          # row and move logic, no Quickshell needed
 bash tests/layout-script.test.sh   # layout save / restore, against temp files
+bash tests/update-script.test.sh   # update summaries, against throwaway git repos
 omarchy plugin validate .          # manifest check
 ```
 

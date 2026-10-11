@@ -8,6 +8,7 @@
 - The highlight stays on the widget after each move, so a key can be pressed repeatedly
 - Two hint lines: the keys that always work, and what the keys do for the current row
 - Reorder buttons are ▲ ▼ to match the keys
+- Update now shows a short summary per plugin and asks before applying. Before, a large update opened git's pager, which looked like a hang
 - Removed the old Reset button, which replaced the layout with no way back
 
 ## 0.1.0

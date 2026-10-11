@@ -41,6 +41,7 @@ Item {
   property string armedSlot: ""
   property var rows: Layout.buildRows(config, plugins, selfId, vertical, collapsed, layouts)
   readonly property string layoutScript: Qt.resolvedUrl("scripts/layout.sh").toString().replace(/^file:\/\//, "")
+  readonly property string updateScript: Qt.resolvedUrl("scripts/update.sh").toString().replace(/^file:\/\//, "")
   property int cursor: -1
   property var cursorTarget: null
   property bool placed: false
@@ -777,9 +778,9 @@ Item {
         Button {
           iconText: "↻"
           text: "Update"
-          tooltipText: "Update installed git plugins"
+          tooltipText: "Check installed git plugins for updates"
           foreground: root.fg
-          onClicked: root.terminal("omarchy-plugin-update")
+          onClicked: root.terminal("bash '" + root.updateScript + "'")
         }
       }
     }

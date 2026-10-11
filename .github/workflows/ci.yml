@@ -41,3 +41,6 @@ jobs:
 
       - name: Layout script tests
         run: bash tests/layout-script.test.sh
+
+      - name: Update script tests
+        run: bash tests/update-script.test.sh

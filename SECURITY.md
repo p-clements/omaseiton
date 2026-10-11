@@ -20,6 +20,7 @@ Other plugins' manifests, other plugins' git folders, and the files Omaseiton it
 - **Slot names** (the names of saved layouts) must match a fixed pattern; `../`, newlines and unknown names are refused, including when a file with such a name exists.
 - **Updating other plugins** applies exactly the commit that was shown, and runs git with hooks, filesystem-monitor programs and every transport outside `https`, `ssh`, `git` and `file` disabled, so a hostile `.git/config` in a plugin folder cannot run code through Omaseiton.
 - **Writing `shell.json`** is atomic, keeps the file's permissions, follows a symlink to its target instead of replacing the link, and never happens without a safety snapshot first.
+- **Private inline settings** in saved layouts are passed to `jq` through stdin during restore, never through process arguments visible to other local users.
 
 ## What it is not designed to withstand
 

@@ -373,6 +373,33 @@ printf '{"savedAt":"x","bar":{"layout":{"left":[],"center":[],"right":[]}}}' >"$
 OMASEITON_REOPEN_FLAG="$SCEN/state/reopen" OMASEITON_REOPEN_SCREEN="DP-2" run restore mine >/dev/null
 check "restore leaves the reopen flag naming the monitor" test "$(cat "$SCEN/state/reopen")" = "DP-2"
 
+# ---------------------------------------------------------------- private inline settings stay off process argv
+fresh privateargs
+write_live
+write_config
+mkdir -p "$OMASEITON_LAYOUT_DIR" "$SCEN/bin"
+cat >"$OMASEITON_LAYOUT_DIR/mine.json" <<'EOF'
+{"bar":{"layout":{"left":[],"center":[{"id":"private.plugin","token":"PRIVATE_LAYOUT_CANARY_72519"}],"right":[]}}}
+EOF
+PRIVATE_REAL_JQ="$(command -v jq)"
+export PRIVATE_REAL_JQ
+export PRIVATE_ARGV_LOG="$SCEN/argv.log"
+cat >"$SCEN/bin/jq" <<'EOF'
+#!/bin/bash
+for arg in "$@"; do
+  printf '%s\n' "$arg" >>"$PRIVATE_ARGV_LOG"
+  if [[ $arg == *PRIVATE_LAYOUT_CANARY_72519* ]]; then
+    echo 'private inline configuration exposed in process argv' >&2
+    exit 98
+  fi
+done
+exec "$PRIVATE_REAL_JQ" "$@"
+EOF
+chmod +x "$SCEN/bin/jq"
+check "restore keeps private snapshot data off jq argv" env PATH="$SCEN/bin:$PATH" bash "$SCRIPT" restore mine
+check "restore still preserves private inline settings" jq_ok "$OMASEITON_CONFIG_FILE" '.bar.layout.center[0].token == "PRIVATE_LAYOUT_CANARY_72519"'
+check "privacy regression guard actually observed jq calls" test -s "$PRIVATE_ARGV_LOG"
+
 # ---------------------------------------------------------------- list
 fresh list
 check "an empty folder lists as []" test "$(bash "$SCRIPT" list)" = "[]"

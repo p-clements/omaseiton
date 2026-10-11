@@ -117,6 +117,12 @@ const mutants = [
 
 // The same idea for the two shell scripts: [script, description, find, replace, count]
 const shellMutants = [
+  [
+    "layout.sh",
+    "private snapshot contents leak into process arguments",
+    '--slurpfile current "$real"',
+    '--argjson exposed "$saved" --slurpfile current "$real"'
+  ],
   ["layout.sh", "five automatic snapshots become fifty", "KEEP_AUTO=5", "KEEP_AUTO=50"],
   ["layout.sh", "pruning keeps the oldest instead of the newest", "sort -r | tail -n +", "sort | tail -n +"],
   ["layout.sh", "any auto-* name is a valid slot", "auto-[0-9]{8}-[0-9]{6}(-[0-9]{1,9})?", "auto-.*"],

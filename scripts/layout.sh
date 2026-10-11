@@ -156,9 +156,12 @@ apply_bar() {
     rm -f "$LAYOUT_DIR/$snap.json"
     fail "cannot write next to $real; your bar is unchanged"
   }
-  if ! jq -S --argjson saved "$saved" --arg id "$SELF_ID" --argjson spot "$spot" \
-    "$JQ_ENSURE .bar = (((.bar // {}) | del(.position, .transparent, .centerAnchor, .layout)) + (\$saved.bar | $JQ_BAR_SUBSET))
-      | ensure(\$id; \$spot)" "$real" >"$tmp" 2>/dev/null; then
+  # Snapshot contents may include private inline plugin settings. Keep them off
+  # process argv: jq reads the snapshot from stdin and the config from disk.
+  if ! jq -S --slurpfile current "$real" --arg id "$SELF_ID" --argjson spot "$spot" \
+    "$JQ_ENSURE . as \$saved | \$current[0]
+      | .bar = (((.bar // {}) | del(.position, .transparent, .centerAnchor, .layout)) + (\$saved.bar | $JQ_BAR_SUBSET))
+      | ensure(\$id; \$spot)" <<<"$saved" >"$tmp" 2>/dev/null; then
     rm -f "$tmp" "$LAYOUT_DIR/$snap.json"
     fail "could not apply the layout; your bar is unchanged"
   fi

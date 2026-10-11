@@ -16,6 +16,20 @@ function parseJson(text, fallback) {
   }
 }
 
+// Everything here reads data from other plugins and from files, so it must
+// survive nulls, strings where objects were expected, and missing fields.
+function objects(list) {
+  return Array.isArray(list) ? list.filter(function(x) { return x && typeof x === "object" }) : []
+}
+
+// A bar entry is either an object with an id or a bare id string (the shell
+// accepts both). Anything else has no id.
+function entryId(entry) {
+  if (typeof entry === "string") return entry
+  if (entry && typeof entry === "object" && typeof entry.id === "string") return entry.id
+  return ""
+}
+
 function pluginIndex(plugins) {
   var map = {}
   for (var i = 0; i < plugins.length; i++) map[plugins[i].id] = plugins[i]
@@ -32,7 +46,8 @@ function isBarWidget(plugin) {
 function buildRows(config, plugins, selfId, vertical, collapsed, layouts) {
   collapsed = collapsed || {}
   var layout = (config && config.bar && config.bar.layout) || {}
-  var byId = pluginIndex(plugins || [])
+  plugins = objects(plugins)
+  var byId = pluginIndex(plugins)
   var labels = vertical ? VERTICAL_LABELS : SECTION_LABELS
   var placed = {}
   var rows = []
@@ -40,9 +55,12 @@ function buildRows(config, plugins, selfId, vertical, collapsed, layouts) {
   for (var s = 0; s < SECTIONS.length; s++) {
     var section = SECTIONS[s]
     var entries = Array.isArray(layout[section]) ? layout[section] : []
-    rows.push({ type: "header", section: section, label: labels[section], count: entries.length, collapsed: !!collapsed[section] })
+    var shown = 0
+    for (var c = 0; c < entries.length; c++) if (entryId(entries[c]) !== "") shown++
+    rows.push({ type: "header", section: section, label: labels[section], count: shown, collapsed: !!collapsed[section] })
     for (var i = 0; i < entries.length; i++) {
-      var id = entries[i].id
+      var id = entryId(entries[i])
+      if (id === "") continue
       var plugin = byId[id]
       placed[id] = true
       if (collapsed[section]) continue
@@ -62,7 +80,7 @@ function buildRows(config, plugins, selfId, vertical, collapsed, layouts) {
   }
 
   var available = []
-  for (var j = 0; j < (plugins || []).length; j++) {
+  for (var j = 0; j < plugins.length; j++) {
     var p = plugins[j]
     if (isBarWidget(p) && !placed[p.id]) available.push(p)
   }
@@ -81,10 +99,10 @@ function buildRows(config, plugins, selfId, vertical, collapsed, layouts) {
 }
 
 // The "Layouts" node: the stock Omarchy bar, the user's own saved layout, and
-// the automatic snapshots taken before each restore (newest first).
+// the automatic snapshots taken before each restore or save (newest first).
 function buildLayoutRows(layouts, collapsed) {
   collapsed = collapsed || {}
-  var saved = Array.isArray(layouts) ? layouts : []
+  var saved = objects(layouts)
   var mine = null
   var autos = []
   for (var i = 0; i < saved.length; i++) {
@@ -98,7 +116,8 @@ function buildLayoutRows(layouts, collapsed) {
   rows.push({ type: "layout", slot: "mine", kind: "mine", name: "My layout",
     note: mine ? "" : "not saved yet", savedAt: mine ? mine.savedAt : "", widgets: mine ? mine.widgets : 0, exists: !!mine })
   for (var k = 0; k < autos.length; k++) {
-    rows.push({ type: "layout", slot: autos[k].slot, kind: "auto", name: "Before a restore",
+    rows.push({ type: "layout", slot: autos[k].slot, kind: "auto",
+      name: autos[k].reason === "save" ? "Before a save" : "Before a restore",
       note: "", savedAt: autos[k].savedAt, widgets: autos[k].widgets, exists: true })
   }
   return rows
@@ -172,7 +191,8 @@ function findRow(rows, target) {
   }
   if (target.id) {
     for (i = 0; i < rows.length; i++) {
-      if ((rows[i].type === "available" || rows[i].type === "widget") && rows[i].id === target.id) return i
+      // only widget and available rows have an id
+      if (rows[i].id === target.id) return i
     }
   }
   return -1
@@ -278,7 +298,7 @@ function initialCursor(rows) {
 function hintFor(row, armed) {
   if (armed) return "Enter again to restore · Esc cancel"
   if (!row) return ""
-  if (row.type === "widget") return "Space off · 1 2 3 lane · ← lane header"
+  if (row.type === "widget") return row.isSelf ? "Omaseiton stays on the bar · 1 2 3 lane" : "Space off · 1 2 3 lane · ← lane header"
   if (row.type === "header") return "← → or Enter fold"
   if (row.type === "available") return "Space switch on · 1 2 3 into a lane"
   if (row.type === "layout") {

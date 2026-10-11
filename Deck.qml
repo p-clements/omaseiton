@@ -13,10 +13,11 @@ import "Layout.js" as Layout
 // down, matching Shift+Up / Shift+Down) reorder
 // inside the lane and appear on the highlighted row.
 //
-// A "Layouts" node saves and restores whole bar layouts. Moves and toggles go
-// through the shell's own IPC (the same calls `omarchy bar` and `omarchy plugin`
-// make), one at a time. Only restoring a layout writes shell.json, and it takes
-// a snapshot first (see scripts/layout.sh).
+// A "Layouts" node saves and restores whole bar layouts. Moves, lane changes and
+// toggles go through the shell's own IPC (the same calls `omarchy bar` and
+// `omarchy plugin` make), one at a time. Restoring a layout, or the Omarchy
+// default, runs scripts/layout.sh, which is the only thing here that writes
+// shell.json; it snapshots first. Both are described in the README.
 Item {
   id: root
 
@@ -24,6 +25,7 @@ Item {
   property string selfId: ""
   property string stateDir: ""
   property string reopenFlag: ""
+  property string screenName: ""
 
   signal closeRequested()
 
@@ -31,7 +33,7 @@ Item {
   readonly property color fg: Color.popups.text
   readonly property color dim: Qt.darker(fg, 1.55)
   readonly property bool vertical: bar ? bar.vertical : false
-  readonly property var laneKeys: ["left", "center", "right"]
+  readonly property var laneKeys: Layout.SECTIONS
   readonly property var laneLetters: vertical ? ["S", "C", "E"] : ["L", "C", "R"]
 
   property var config: ({})
@@ -46,6 +48,11 @@ Item {
   property var cursorTarget: null
   property bool placed: false
   property bool busy: false
+  property bool layoutBusy: false
+  readonly property bool working: busy || layoutBusy
+  property string statusText: ""
+  property string lastOutput: ""
+  property var currentArgv: []
 
   readonly property int onBarCount: {
     var n = 0
@@ -262,13 +269,25 @@ Item {
     busy = true
     var next = queue[0]
     queue = queue.slice(1)
+    currentArgv = next
     runner.command = next
     runner.running = true
   }
 
   Process {
     id: runner
-    onExited: {
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.lastOutput = text
+    }
+    onExited: function(exitCode, exitStatus) {
+      // The shell answers an IPC call with "ok", or with a word saying why not
+      // (with exit status 0), so look at both.
+      var said = String(root.lastOutput).trim()
+      var asked = root.currentArgv.length > 0 ? root.currentArgv[0] : ""
+      if (asked === "omarchy-shell" && said !== "" && said !== "ok") root.showStatus("The shell said: " + said.slice(0, 60))
+      else if (exitCode !== 0) root.showStatus("That did not work (exit " + exitCode + ")")
+      root.lastOutput = ""
       if (root.queue.length > 0) root.pump()
       else {
         root.busy = false
@@ -277,11 +296,22 @@ Item {
     }
   }
 
+  function showStatus(message) {
+    statusText = message
+    statusTimer.restart()
+  }
+
+  Timer {
+    id: statusTimer
+    interval: 6000
+    onTriggered: root.statusText = ""
+  }
+
   // Mutations rebuild every bar widget, Omaseiton included. Leave a breadcrumb
-  // so the fresh instance reopens the dropdown instead of vanishing.
+  // so the fresh instance reopens the dropdown instead of vanishing. There is one
+  // bar per monitor, so the breadcrumb says which monitor's dropdown to reopen.
   function markReopen() {
-    run(["mkdir", "-p", stateDir])
-    run(["touch", reopenFlag])
+    run(["sh", "-c", 'mkdir -p "$1" && printf %s "$2" > "$3"', "sh", stateDir, screenName, reopenFlag])
   }
 
   function shellCall(method, args) {
@@ -290,6 +320,7 @@ Item {
   }
 
   function moveRow(row, action) {
+    if (working) return
     var placement = Layout.computeMove(config, row.section, row.index, action)
     if (!placement) return
     // Never move a widget into a lane the user cannot see it land in.
@@ -301,6 +332,7 @@ Item {
   // Pressing a lane button: move a bar widget there, or switch an available
   // one on in that lane.
   function sendToLane(row, laneIndex) {
+    if (working) return
     var lane = laneKeys[laneIndex]
     if (row.type === "available") {
       if (collapsed && collapsed[lane]) setCollapsed(lane, false)
@@ -312,6 +344,7 @@ Item {
   }
 
   function toggleRow(row) {
+    if (working) return
     if (row.type === "widget") {
       if (!row.canDisable) return
       // Leave the highlight on the neighbour that takes its place.
@@ -325,6 +358,11 @@ Item {
     }
   }
 
+  // Quote a value for the shell command line that the terminal launcher builds.
+  function shq(value) {
+    return "'" + String(value).replace(/'/g, "'\\''") + "'"
+  }
+
   function terminal(command) {
     Quickshell.execDetached(["omarchy-launch-floating-terminal-with-presentation", command])
     closeRequested()
@@ -336,21 +374,39 @@ Item {
   }
 
   function saveMine() {
+    if (working) return
     run(["bash", layoutScript, "save", "mine"])
   }
 
-  // Restoring replaces the whole bar, so it takes two presses. The script
-  // snapshots the current layout first, so there is always a way back.
+  // Restoring replaces the bar's layout, so it takes two presses. The script
+  // snapshots the current layout first, so there is always a way back. It runs
+  // detached: the bar rebuilds the moment shell.json changes, and that destroys
+  // this panel, which must not take the script's last steps down with it.
   function restoreLayout(row) {
-    if (!row.exists) return
+    if (working || !row.exists) return
     if (armedSlot !== row.slot) {
       armedSlot = row.slot
       armTimer.restart()
       return
     }
     armedSlot = ""
-    markReopen()
-    run(["bash", layoutScript, row.kind === "default" ? "defaults" : "restore", row.slot])
+    layoutBusy = true
+    layoutBusyTimer.restart()
+    Quickshell.execDetached(["env", "OMASEITON_REOPEN_FLAG=" + reopenFlag, "OMASEITON_REOPEN_SCREEN=" + screenName,
+      "bash", layoutScript, row.kind === "default" ? "defaults" : "restore", row.slot])
+    layoutRefresh.restart()
+  }
+
+  // If the panel survives (the script failed, say), pick up the real state.
+  Timer {
+    id: layoutBusyTimer
+    interval: 4000
+    onTriggered: root.layoutBusy = false
+  }
+  Timer {
+    id: layoutRefresh
+    interval: 1800
+    onTriggered: root.refresh()
   }
 
   Timer {
@@ -432,20 +488,28 @@ Item {
       case Qt.Key_Escape: name = "esc"; break
     }
     if (name !== "") return ((event.modifiers & Qt.ShiftModifier) ? "shift+" : "") + name
+    // Letters come from the key itself, not from the text it produced, so
+    // CapsLock cannot turn "j" (move down the list) into "J" (move the widget).
+    if (event.key >= Qt.Key_A && event.key <= Qt.Key_Z) {
+      var letter = String.fromCharCode(event.key).toLowerCase()
+      return (event.modifiers & Qt.ShiftModifier) ? letter.toUpperCase() : letter
+    }
     return event.text
   }
 
   // Returns true when the key was ours.
-  function handleKey(token) {
+  function handleKey(token, isRepeat) {
     var row = rows[cursor] || null
     var action = Layout.resolveKey(row, token, { armed: armedSlot !== "" })
     if (action.kind === "none") return false
 
     // While a change is being applied the bar is about to rebuild: ignore
     // anything that would change it again, so keys cannot act on stale rows.
+    // A key held down repeats; that must never repeat a change (switching off
+    // widget after widget, or confirming a restore that wanted two deliberate presses).
     var changes = action.kind === "move" || action.kind === "send" || action.kind === "toggle"
       || action.kind === "restore" || action.kind === "save"
-    if (changes && busy) return true
+    if (changes && (working || isRepeat)) return true
 
     switch (action.kind) {
       case "cursor":
@@ -490,7 +554,7 @@ Item {
     focus: true
     Keys.onPressed: function(event) {
       var token = root.keyToken(event)
-      if (token !== "" && root.handleKey(token)) event.accepted = true
+      if (token !== "" && root.handleKey(token, event.isAutoRepeat)) event.accepted = true
     }
 
     Column {
@@ -534,8 +598,8 @@ Item {
           height: Style.font.caption + Style.space(6)
           textFormat: Text.PlainText
           elide: Text.ElideRight
-          text: Layout.hintFor(root.rows[root.cursor] || null, root.armedSlot !== "")
-          color: Color.accent
+          text: root.statusText !== "" ? root.statusText : Layout.hintFor(root.rows[root.cursor] || null, root.armedSlot !== "")
+          color: root.statusText !== "" ? Color.urgent : Color.accent
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
         }
@@ -741,7 +805,9 @@ Item {
                   cursorRing: false
                   trackHeight: Style.space(18)
                   checked: !delegateRoot.isAvailable
-                  opacity: delegateRoot.isAvailable || delegateRoot.isLayout || delegateRoot.modelData.canDisable ? 1 : 0.35
+                  busy: root.working
+                  interactive: delegateRoot.isAvailable || delegateRoot.modelData.canDisable
+                  opacity: delegateRoot.isAvailable || delegateRoot.modelData.canDisable ? 1 : 0.35
                   foreground: root.fg
                   onToggled: root.toggleRow(delegateRoot.modelData)
                 }
@@ -780,7 +846,7 @@ Item {
           text: "Update"
           tooltipText: "Check installed git plugins for updates"
           foreground: root.fg
-          onClicked: root.terminal("bash '" + root.updateScript + "'")
+          onClicked: root.terminal("bash " + root.shq(root.updateScript))
         }
       }
     }

@@ -2,45 +2,56 @@ name: ci
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+# Least privilege: this workflow only reads the repository. It uses no secrets and
+# is not triggered by pull_request_target, so code from a fork never runs with
+# write access.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      # Actions are pinned to commit hashes, so a moved tag cannot change what runs.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
-      - name: Manifest is valid JSON with the required fields
-        run: |
-          jq -e '
-            .schemaVersion == 1
-            and (.id | test("^[A-Za-z0-9][A-Za-z0-9._-]*$"))
-            and (.id | startswith("omarchy.") | not)
-            and (.name | length > 0)
-            and (.version | length > 0 and length <= 64)
-            and (.author | length > 0)
-            and (.description | length > 0)
-            and (.kinds | length > 0)
-            and (.entryPoints | type == "object")
-          ' manifest.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
 
-      - name: Entry points exist
-        run: |
-          for f in $(jq -r '.entryPoints[]' manifest.json); do
-            test -f "$f" || { echo "missing entry point: $f"; exit 1; }
-          done
-
-      - name: No symlinks in the repo
+      - name: No symlinks in the repo (plugins may not contain any)
         run: |
           if find . -path ./.git -prune -o -type l -print | grep -q .; then
             echo "symlinks are not allowed in plugins"; exit 1
           fi
 
-      - name: Layout logic tests
+      - name: Row, move and key logic
         run: node tests/layout.test.js
 
-      - name: Layout script tests
+      - name: Layout script (save, restore, default)
         run: bash tests/layout-script.test.sh
 
-      - name: Update script tests
+      - name: Update script
         run: bash tests/update-script.test.sh
+
+      - name: Mutation check (the tests must notice deliberate breakage)
+        run: node tests/mutation.test.js
+
+      - name: Shell lint
+        run: shellcheck scripts/*.sh tests/*.sh assets/src/*.sh
+
+      - name: Formatting
+        run: npx --yes prettier@3.3.3 --check .
+
+      - name: Marketplace manifest rules and security baseline (the marketplace's own code, pinned)
+        run: bash tests/marketplace.sh

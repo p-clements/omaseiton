@@ -1,0 +1,4 @@
+# QML JavaScript (starts with a ".pragma library" line) and QML are not formatted by prettier
+Layout.js
+*.qml
+assets/

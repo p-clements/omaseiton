@@ -1,19 +1,14 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0
 
-- Layouts: save your bar as "My layout", restore it, or return to the Omarchy default. A snapshot is taken before every restore (last five kept)
-- One key rule: plain keys move the highlight, Shift moves the widget (Shift+↑↓ reorders, Shift+←→ changes lane, 1 2 3 jump to a lane)
-- Navigate with ↑↓ jk, Home End, and [ ] between lanes; keys work as soon as the dropdown opens
-- The highlight stays on the widget after each move, so a key can be pressed repeatedly
-- Two hint lines: the keys that always work, and what the keys do for the current row
-- Reorder buttons are ▲ ▼ to match the keys
-- Update now shows a short summary per plugin and asks before applying. Before, a large update opened git's pager, which looked like a hang
-- Removed the old Reset button, which replaced the layout with no way back
+First public release.
 
-## 0.1.0
-
-- First version: a tree of bar widgets grouped by foldable lane, with L C R lane buttons, up/down reorder and an on/off toggle
-- Available list for installed bar widgets that are switched off
-- Marketplace, Add, Update and Reset shortcuts
-- Keyboard navigation
+- A tree of bar widgets grouped by foldable lane, with **L C R** lane buttons, up/down reorder and an on/off toggle
+- An Available list for installed bar widgets that are switched off
+- One key rule: plain keys move the highlight, Shift moves the widget (`Shift+↑↓` reorders, `Shift+←→` changes lane, `1 2 3` jump to a lane). Letters are read from the key itself, so CapsLock does not change them, and a held key never repeats a change
+- Keys work as soon as the dropdown opens, and the highlight stays on the widget after each move
+- **Layouts**: save the bar as "My layout", restore it, or return to the Omarchy default. Restoring replaces only `bar.layout`, `bar.position`, `bar.transparent` and `bar.centerAnchor`, always takes a snapshot first (and so does saving over "My layout"), keeps Omaseiton on the bar, follows symlinks and keeps permissions
+- **Update** shows a short summary per plugin and applies exactly the commit it showed, with validation and rollback. Git runs with hooks, filesystem-monitor programs and unusual transports disabled. Before, a large update opened git's pager, which looked like a hang
+- After a move, the dropdown reopens on the same monitor
+- Tests for every claim in the README, a mutation check, and a CI run of the marketplace's own manifest and security checks

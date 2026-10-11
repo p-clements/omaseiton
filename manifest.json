@@ -1,23 +1,15 @@
 {
   "schemaVersion": 1,
-  "id": "pclements.omaseiton",
+  "id": "io.github.p-clements.omaseiton",
   "name": "Omaseiton",
   "version": "0.2.0",
-  "author": "pclements",
+  "author": "p-clements",
   "license": "MIT",
+  "homepage": "https://github.com/p-clements/omaseiton",
+  "repository": "https://github.com/p-clements/omaseiton",
   "description": "Everything in its place on your Omarchy bar: see every widget by lane, reorder, move, toggle, and save or restore whole layouts.",
-  "keywords": [
-    "bar",
-    "plugins",
-    "manager",
-    "layout",
-    "tidy",
-    "seiton",
-    "整頓"
-  ],
-  "kinds": [
-    "bar-widget"
-  ],
+  "keywords": ["bar", "plugins", "manager", "layout", "tidy", "seiton", "整頓"],
+  "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "BarWidget.qml"
   },

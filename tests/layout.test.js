@@ -4,7 +4,9 @@ const fs = require("node:fs")
 const path = require("node:path")
 
 // Layout.js is a QML `.pragma library` file; drop that directive and load it as CommonJS.
-const source = fs.readFileSync(path.join(__dirname, "..", "Layout.js"), "utf8").replace(/^\.pragma library\s*$/m, "")
+const source = fs
+  .readFileSync(process.env.LAYOUT_JS || path.join(__dirname, "..", "Layout.js"), "utf8")
+  .replace(/^\.pragma library\s*$/m, "")
 const mod = { exports: {} }
 new Function("module", source)(mod)
 const L = mod.exports
@@ -32,34 +34,40 @@ const plugins = [
 // buildRows: headers, order, available, names, self protection
 {
   const rows = L.buildRows(config, plugins, "x.deck", false)
-  assert.deepEqual(rows.filter(r => r.type === "header").map(r => r.label), ["Left", "Center", "Right", "Available", "Layouts"])
-  assert.deepEqual(rows.filter(r => r.type === "widget" && r.section === "center").map(r => r.name), ["Clock", "Radar"])
-  const avail = rows.filter(r => r.type === "available").map(r => r.id)
+  assert.deepEqual(
+    rows.filter((r) => r.type === "header").map((r) => r.label),
+    ["Left", "Center", "Right", "Available", "Layouts"]
+  )
+  assert.deepEqual(
+    rows.filter((r) => r.type === "widget" && r.section === "center").map((r) => r.name),
+    ["Clock", "Radar"]
+  )
+  const avail = rows.filter((r) => r.type === "available").map((r) => r.id)
   assert.deepEqual(avail, ["a.spare", "x.deck"], "services and placed widgets are not listed as available")
-  assert.equal(rows.find(r => r.id === "x.radar").firstParty, false)
-  assert.equal(L.buildRows(config, plugins, "a.clock", false).find(r => r.id === "a.clock").canDisable, false)
-  assert.deepEqual(L.buildRows(config, plugins, "", true).filter(r => r.type === "header").map(r => r.label),
-    ["Start", "Center", "End", "Available", "Layouts"])
+  assert.equal(rows.find((r) => r.id === "x.radar").firstParty, false)
+  assert.equal(L.buildRows(config, plugins, "a.clock", false).find((r) => r.id === "a.clock").canDisable, false)
+  assert.deepEqual(
+    L.buildRows(config, plugins, "", true)
+      .filter((r) => r.type === "header")
+      .map((r) => r.label),
+    ["Start", "Center", "End", "Available", "Layouts"]
+  )
 }
 
 // buildRows: unknown ids fall back to the id, empty config is safe
 {
   const rows = L.buildRows({ bar: { layout: { left: [{ id: "ghost.widget" }] } } }, [], "", false)
-  assert.equal(rows.find(r => r.type === "widget").name, "ghost.widget")
-  assert.equal(L.buildRows(null, null, "", false).filter(r => r.type === "header").length, 5)
+  assert.equal(rows.find((r) => r.type === "widget").name, "ghost.widget")
+  assert.equal(L.buildRows(null, null, "", false).filter((r) => r.type === "header").length, 5)
 }
 
 // computeMove
-assert.deepEqual(L.computeMove(config, "center", 1, "up"),
-  { fromSection: "center", fromIndex: 1, section: "center", index: 0 })
+assert.deepEqual(L.computeMove(config, "center", 1, "up"), { fromSection: "center", fromIndex: 1, section: "center", index: 0 })
 assert.equal(L.computeMove(config, "center", 0, "up"), null)
-assert.deepEqual(L.computeMove(config, "left", 0, "down"),
-  { fromSection: "left", fromIndex: 0, section: "left", index: 1 })
+assert.deepEqual(L.computeMove(config, "left", 0, "down"), { fromSection: "left", fromIndex: 0, section: "left", index: 1 })
 assert.equal(L.computeMove(config, "left", 1, "down"), null)
-assert.deepEqual(L.computeMove(config, "left", 1, "next"),
-  { fromSection: "left", fromIndex: 1, section: "center", index: 0 })
-assert.deepEqual(L.computeMove(config, "right", 0, "prev"),
-  { fromSection: "right", fromIndex: 0, section: "center", index: 2 })
+assert.deepEqual(L.computeMove(config, "left", 1, "next"), { fromSection: "left", fromIndex: 1, section: "center", index: 0 })
+assert.deepEqual(L.computeMove(config, "right", 0, "prev"), { fromSection: "right", fromIndex: 0, section: "center", index: 2 })
 assert.equal(L.computeMove(config, "left", 0, "prev"), null)
 assert.equal(L.computeMove(config, "right", 0, "next"), null)
 assert.equal(L.computeMove(config, "center", 9, "up"), null)
@@ -67,25 +75,23 @@ assert.equal(L.computeMove(config, "nope", 0, "up"), null)
 assert.equal(L.computeMove(config, "center", 0, "sideways"), null)
 
 // to-<lane>: jump straight to a lane
-assert.deepEqual(L.computeMove(config, "left", 0, "to-right"),
-  { fromSection: "left", fromIndex: 0, section: "right", index: 1 })
-assert.deepEqual(L.computeMove(config, "right", 0, "to-left"),
-  { fromSection: "right", fromIndex: 0, section: "left", index: 2 })
+assert.deepEqual(L.computeMove(config, "left", 0, "to-right"), { fromSection: "left", fromIndex: 0, section: "right", index: 1 })
+assert.deepEqual(L.computeMove(config, "right", 0, "to-left"), { fromSection: "right", fromIndex: 0, section: "left", index: 2 })
 assert.equal(L.computeMove(config, "left", 0, "to-left"), null, "already in that lane")
 assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
 
 // collapsed lanes hide their widgets but keep the header and count
 {
   const rows = L.buildRows(config, plugins, "x.deck", false, { center: true })
-  const header = rows.find(r => r.type === "header" && r.section === "center")
+  const header = rows.find((r) => r.type === "header" && r.section === "center")
   assert.equal(header.collapsed, true)
   assert.equal(header.count, 2)
-  assert.equal(rows.filter(r => r.type === "widget" && r.section === "center").length, 0)
-  assert.equal(rows.filter(r => r.type === "widget" && r.section === "left").length, 2)
-  assert.equal(rows.filter(r => r.type === "available").length, 2, "collapsing a lane does not make its widgets available")
+  assert.equal(rows.filter((r) => r.type === "widget" && r.section === "center").length, 0)
+  assert.equal(rows.filter((r) => r.type === "widget" && r.section === "left").length, 2)
+  assert.equal(rows.filter((r) => r.type === "available").length, 2, "collapsing a lane does not make its widgets available")
   const closed = L.buildRows(config, plugins, "x.deck", false, { available: true })
-  assert.equal(closed.filter(r => r.type === "available").length, 0)
-  assert.equal(closed.find(r => r.section === "available").count, 2)
+  assert.equal(closed.filter((r) => r.type === "available").length, 0)
+  assert.equal(closed.find((r) => r.section === "available").count, 2)
 }
 
 // findRow / stepCursor
@@ -107,19 +113,26 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
 // Layouts node: stock + mine + automatic snapshots
 {
   const none = L.buildLayoutRows([], {})
-  assert.deepEqual(none.map(r => r.type + ":" + (r.slot || r.section)),
-    ["header:layouts", "layout:omarchy-default", "layout:mine"])
+  assert.deepEqual(
+    none.map((r) => r.type + ":" + (r.slot || r.section)),
+    ["header:layouts", "layout:omarchy-default", "layout:mine"]
+  )
   assert.equal(none[2].exists, false)
   assert.equal(none[2].note, "not saved yet")
-  const some = L.buildLayoutRows([
-    { slot: "auto-20260101-000002", savedAt: "b", widgets: 3 },
-    { slot: "mine", savedAt: "a", widgets: 20 },
-    { slot: "auto-20260101-000001", savedAt: "c", widgets: 4 },
-    { slot: "stray", savedAt: "d", widgets: 1 }
-  ], {})
-  assert.deepEqual(some.map(r => r.slot || r.section),
+  const some = L.buildLayoutRows(
+    [
+      { slot: "auto-20260101-000002", savedAt: "b", widgets: 3 },
+      { slot: "mine", savedAt: "a", widgets: 20 },
+      { slot: "auto-20260101-000001", savedAt: "c", widgets: 4 },
+      { slot: "stray", savedAt: "d", widgets: 1 }
+    ],
+    {}
+  )
+  assert.deepEqual(
+    some.map((r) => r.slot || r.section),
     ["layouts", "omarchy-default", "mine", "auto-20260101-000002", "auto-20260101-000001"],
-    "unknown slots are ignored, input order of autos is kept")
+    "unknown slots are ignored, input order of autos is kept"
+  )
   assert.equal(some[0].count, 4)
   assert.equal(some[2].exists, true)
   assert.equal(some[2].widgets, 20)
@@ -132,7 +145,12 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
 
 // findRow: precise target first, then header, then id
 {
-  const rows = L.buildRows({ bar: { layout: { left: [{ id: "a.spacer" }, { id: "a.spacer" }, { id: "a.menu" }], center: [], right: [] } } }, plugins, "x.deck", false)
+  const rows = L.buildRows(
+    { bar: { layout: { left: [{ id: "a.spacer" }, { id: "a.spacer" }, { id: "a.menu" }], center: [], right: [] } } },
+    plugins,
+    "x.deck",
+    false
+  )
   const second = L.findRow(rows, { id: "a.spacer", section: "left", index: 1 })
   assert.equal(rows[second].index, 1, "with two spacers, section and index win over id")
   assert.equal(rows[L.findRow(rows, { id: "a.spacer" })].index, 0, "by id alone, the first one")
@@ -225,7 +243,7 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
 // parentHeader / laneHeader / initialCursor / hintFor
 {
   const rows = L.buildRows(config, plugins, "x.deck", false, {}, [])
-  const header = i => rows[i].type === "header"
+  const header = (i) => rows[i].type === "header"
   const clock = L.findRow(rows, { id: "a.clock" })
   const centerHeader = L.parentHeader(rows, clock)
   assert.equal(rows[centerHeader].section, "center")
@@ -235,7 +253,10 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
   assert.equal(rows[right].section, "right", "] from a center widget goes to the right lane")
   assert.equal(L.laneHeader(rows, clock, -1), centerHeader, "[ from inside a lane goes to its own header")
   assert.equal(rows[L.laneHeader(rows, centerHeader, -1)].section, "left", "[ from a header goes to the previous lane")
-  const lastHeader = rows.map((r, i) => header(i) ? i : -1).filter(i => i >= 0).pop()
+  const lastHeader = rows
+    .map((r, i) => (header(i) ? i : -1))
+    .filter((i) => i >= 0)
+    .pop()
   assert.equal(L.laneHeader(rows, lastHeader, 1), lastHeader, "no lane after the last one")
   assert.equal(L.laneHeader(rows, 0, -1), 0, "no lane before the first one")
 
@@ -245,6 +266,12 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
   assert.equal(L.initialCursor([]), -1)
 
   assert.equal(L.hintFor(rows[clock], false), "Space off · 1 2 3 lane · ← lane header")
+  assert.equal(
+    L.hintFor({ type: "widget", isSelf: true }, false),
+    "Omaseiton stays on the bar · 1 2 3 lane",
+    "its own row does not offer Space off"
+  )
+  assert.equal(L.hintFor({ type: "widget", isSelf: false }, false), "Space off · 1 2 3 lane · ← lane header")
   assert.equal(L.hintFor(rows[centerHeader], false), "← → or Enter fold")
   assert.equal(L.hintFor({ type: "available" }, false), "Space switch on · 1 2 3 into a lane")
   assert.equal(L.hintFor({ type: "layout", kind: "mine", exists: true }, false), "Enter twice restore · s save")
@@ -254,6 +281,122 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
   assert.equal(L.hintFor(null, false), "")
   assert.ok(L.HINT_KEYS.indexOf("Shift+↑↓") >= 0)
 }
+
+// Data from other plugins and from files can be wrong; the panel must not break
+{
+  const messy = { bar: { layout: { left: ["a.menu", null, { id: "a.clock" }, 5, {}, { id: 7 }], center: "nope", right: null } } }
+  const rows = L.buildRows(messy, plugins, "x.deck", false)
+  const widgets = rows.filter((r) => r.type === "widget")
+  assert.deepEqual(
+    widgets.map((r) => r.id),
+    ["a.menu", "a.clock"],
+    "string entries work; null and id-less entries are skipped"
+  )
+  assert.deepEqual(
+    widgets.map((r) => r.index),
+    [0, 2],
+    "indices stay the real positions in the lane, so moves hit the right entry"
+  )
+  assert.equal(widgets[0].sectionSize, 6, "sectionSize is the real lane length")
+  assert.equal(rows.find((r) => r.type === "header" && r.section === "left").count, 2)
+  assert.equal(
+    rows.filter((r) => r.type === "available").some((r) => r.id === "a.menu"),
+    false,
+    "a string entry counts as placed"
+  )
+  assert.equal(rows.find((r) => r.type === "header" && r.section === "center").count, 0, "a lane that is not a list is empty")
+
+  assert.doesNotThrow(() => L.buildRows(config, [null, "x", 5, { id: "a.menu", name: "Menu", kinds: ["bar-widget"] }], "x.deck", false))
+  assert.doesNotThrow(() => L.buildRows({ bar: null }, undefined, undefined, false, "not an object", "not a list"))
+  assert.doesNotThrow(() => L.buildRows(undefined, null, "", true, null, [null, 1, "x"]))
+  assert.equal(L.buildLayoutRows([null, { slot: "mine", widgets: 3 }, 7], {}).find((r) => r.slot === "mine").exists, true)
+}
+
+// the reason a snapshot exists is shown
+{
+  const rows = L.buildLayoutRows(
+    [
+      { slot: "auto-20260102-000000", reason: "save", savedAt: "s", widgets: 1 },
+      { slot: "auto-20260101-000000", reason: "restore", savedAt: "r", widgets: 2 },
+      { slot: "auto-20250101-000000", savedAt: "old", widgets: 3 }
+    ],
+    {}
+  )
+  assert.deepEqual(
+    rows.filter((r) => r.kind === "auto").map((r) => r.name),
+    ["Before a save", "Before a restore", "Before a restore"]
+  )
+  assert.deepEqual(
+    rows.filter((r) => r.kind === "auto").map((r) => r.savedAt),
+    ["s", "r", "old"],
+    "the time is carried through"
+  )
+  assert.deepEqual(
+    rows.filter((r) => r.kind === "auto").map((r) => r.widgets),
+    [1, 2, 3]
+  )
+  const mine = L.buildLayoutRows([{ slot: "mine", savedAt: "when", widgets: 9 }], {}).find((r) => r.slot === "mine")
+  assert.equal(mine.savedAt, "when")
+  assert.equal(mine.widgets, 9)
+  assert.equal(mine.note, "", "a saved layout has no 'not saved yet' note")
+}
+
+// fields that come from the plugin list
+{
+  const pl = [
+    { id: "a.menu", name: "Menu", kinds: ["bar-widget"], firstParty: true, canDisable: false, clonedFrom: "orig.menu" },
+    { id: "a.free", name: "Free", kinds: ["bar-widget"], firstParty: true, clonedFrom: "orig.free" }
+  ]
+  const cfg = { bar: { layout: { left: [{ id: "a.menu" }, { id: "x.deck" }], center: [], right: [] } } }
+  const rows = L.buildRows(cfg, pl, "x.deck", false)
+  const menu = rows.find((r) => r.id === "a.menu")
+  assert.equal(menu.canDisable, false, "a plugin that cannot be disabled is not offered the switch")
+  assert.equal(menu.clonedFrom, "orig.menu")
+  assert.equal(menu.firstParty, true)
+  assert.equal(menu.isSelf, false)
+  assert.equal(menu.sectionSize, 2, "sectionSize is the lane's length")
+  const self = rows.find((r) => r.id === "x.deck")
+  assert.equal(self.isSelf, true)
+  assert.equal(self.canDisable, false, "Omaseiton cannot switch itself off")
+  const free = rows.find((r) => r.type === "available")
+  assert.equal(free.clonedFrom, "orig.free", "available rows carry clonedFrom too")
+  assert.equal(free.firstParty, true)
+}
+
+// moves stop exactly at the ends of a lane
+assert.equal(L.computeMove(config, "left", 2, "up"), null, "an index past the end is not a widget")
+assert.equal(L.computeMove(config, "left", -1, "down"), null)
+assert.notEqual(L.computeMove(config, "left", 1, "up"), null, "the last widget can still move up")
+assert.notEqual(L.computeMove(config, "left", 0, "down"), null, "the first widget can still move down")
+
+// keys that must stay unclaimed
+for (const t of ["X", "4", "5", "0", "z", "Z", "Q"]) {
+  assert.equal(L.resolveKey({ type: "widget", id: "a", section: "left", index: 0 }, t).kind, "none", t + " is not ours")
+  assert.equal(L.resolveKey({ type: "available", id: "a" }, t).kind, "none", t + " is not ours on Available either")
+}
+
+// lane and header finding
+{
+  const noHeaders = [{ type: "widget" }, { type: "widget" }]
+  assert.equal(L.parentHeader(noHeaders, 1), 1, "with no header above, stay put")
+  assert.equal(L.parentHeader([{ type: "header" }, { type: "widget" }], 1), 0)
+  assert.equal(L.parentHeader([{ type: "header" }], 5), 0, "an index past the end is clamped")
+  assert.equal(L.laneHeader([], 0, 1), 0)
+}
+
+// findRow knows rows by kind
+{
+  const rows = L.buildRows(config, plugins, "x.deck", false)
+  assert.equal(rows[L.findRow(rows, { id: "a.menu" })].type, "widget")
+  assert.equal(rows[L.findRow(rows, { id: "a.spare" })].type, "available")
+  assert.equal(L.findRow(rows, { id: "a.battery" }), -1, "a service is not on the list at all")
+  assert.equal(L.findRow(rows, { header: "nowhere" }), -1)
+  assert.equal(L.findRow(rows, { section: "left", index: 0 }), L.findRow(rows, { id: "a.menu" }))
+}
+
+assert.deepEqual(L.parseJson("null", [1]), [1], "a JSON null falls back")
+assert.deepEqual(L.parseJson("[1,2]", []), [1, 2])
+assert.deepEqual(L.parseJson(undefined, "x"), "x")
 
 assert.deepEqual(L.parseJson("{bad", []), [])
 assert.deepEqual(L.parseJson("", {}), {})

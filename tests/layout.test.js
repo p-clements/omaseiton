@@ -244,7 +244,7 @@ assert.equal(L.computeMove(config, "left", 0, "to-nowhere"), null)
   assert.equal(L.initialCursor(folded), 0, "with everything folded, the first row")
   assert.equal(L.initialCursor([]), -1)
 
-  assert.equal(L.hintFor(rows[clock], false), "Space off · ← lane header")
+  assert.equal(L.hintFor(rows[clock], false), "Space off · 1 2 3 lane · ← lane header")
   assert.equal(L.hintFor(rows[centerHeader], false), "← → or Enter fold")
   assert.equal(L.hintFor({ type: "available" }, false), "Space switch on · 1 2 3 into a lane")
   assert.equal(L.hintFor({ type: "layout", kind: "mine", exists: true }, false), "Enter twice restore · s save")

@@ -10,7 +10,10 @@
     "bar",
     "plugins",
     "manager",
-    "layout"
+    "layout",
+    "tidy",
+    "seiton",
+    "整頓"
   ],
   "kinds": [
     "bar-widget"

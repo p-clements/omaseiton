@@ -94,7 +94,7 @@ function buildLayoutRows(layouts, collapsed) {
   var rows = [{ type: "header", section: "layouts", label: "Layouts", count: 2 + autos.length, collapsed: !!collapsed.layouts }]
   if (collapsed.layouts) return rows
   rows.push({ type: "layout", slot: "omarchy-default", kind: "default", name: "Omarchy default",
-    note: "the stock bar. Omaseiton stays, your other widgets come off", savedAt: "", widgets: 0, exists: true })
+    note: "the stock bar (Omaseiton stays)", savedAt: "", widgets: 0, exists: true })
   rows.push({ type: "layout", slot: "mine", kind: "mine", name: "My layout",
     note: mine ? "" : "not saved yet", savedAt: mine ? mine.savedAt : "", widgets: mine ? mine.widgets : 0, exists: !!mine })
   for (var k = 0; k < autos.length; k++) {
@@ -196,7 +196,7 @@ function stepCursor(rows, from, dir) {
 // Plain keys move the highlight; Shift moves the widget. Up / down is the
 // order inside a lane, left / right is the lane.
 
-var HINT_KEYS = "↑↓ move · [ ] lanes · Shift+↑↓ reorder · Shift+←→ or 1 2 3 lane"
+var HINT_KEYS = "↑↓ move · [ ] lanes · Shift+↑↓ order · Shift+←→ lane"
 
 // What a key does for the highlighted row. Returns {kind: ...}; "none" means
 // the key is not ours and should be left alone.
@@ -278,7 +278,7 @@ function initialCursor(rows) {
 function hintFor(row, armed) {
   if (armed) return "Enter again to restore · Esc cancel"
   if (!row) return ""
-  if (row.type === "widget") return "Space off · ← lane header"
+  if (row.type === "widget") return "Space off · 1 2 3 lane · ← lane header"
   if (row.type === "header") return "← → or Enter fold"
   if (row.type === "available") return "Space switch on · 1 2 3 into a lane"
   if (row.type === "layout") {

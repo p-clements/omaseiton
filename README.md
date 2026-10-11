@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="Omaseiton: everything in its place on your Omarchy bar" width="100%">
+  <img src="assets/banner.png" alt="Omaseiton (整頓): everything in its place on your Omarchy bar" width="100%">
 </p>
 
 <p align="center">
@@ -13,17 +13,22 @@
 
 ---
 
-## The name
-
-**Omaseiton** is *Omarchy* + **整頓 (seiton)**, the Japanese word for putting things in order. It is the second of the 5S workplace principles: "a place for everything, and everything in its place."
+> ### 整頓 · *seiton* (せいとん)
+>
+> **Putting things in order.** In the Japanese **5S** method for keeping a workplace tidy, *seiton* is the second step: "a place for everything, and everything in its place."
+>
+> **Omaseiton** is *Omarchy* + *seiton*: it puts everything on your Omarchy bar in its place.
 
 ## What it is
 
 Omaseiton is a bar widget for the [Omarchy](https://omarchy.org) shell. Click its icon and a dropdown lists every widget on your bar, split into **Left**, **Center** and **Right** lanes, followed by the bar widgets you have installed but switched off.
 
 <p align="center">
-  <img src="docs/panel.png" alt="The Omaseiton dropdown: widgets in Left, Center and Right lanes, each with L C R lane buttons" width="480">
+  <img src="docs/panel.png" alt="The Omaseiton dropdown: widgets in Left and Center lanes, each row with L C R lane buttons and a toggle" width="372">
+  <img src="docs/layouts.png" alt="The Layouts node: Omarchy default and My layout, each with Save and Restore buttons" width="372">
 </p>
+
+<p align="center"><sub>Left: lanes as a tree, with the buttons for the highlighted row. Right: saving and restoring whole layouts.</sub></p>
 
 More screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 
@@ -122,6 +127,22 @@ The layout and move logic lives in [`Layout.js`](Layout.js) and is tested on its
 - Clone, open folder and remove actions per row
 - "Update available" badges
 - Drag and drop (Omarchy's bar already supports dragging icons directly)
+
+## About the name
+
+| | |
+|---|---|
+| **Kanji** | 整頓 |
+| **Reading** | せいとん (*seiton*) |
+| **Meaning** | tidying up; putting in order; organizing |
+| **In 5S** | The second of five workplace principles: 整理 *seiri* (sort), **整頓 *seiton* (set in order)**, 清掃 *seisō* (shine), 清潔 *seiketsu* (standardize), しつけ *shitsuke* (sustain) |
+
+The kanji and the brush circle on the banner are the idea in one picture: the calm, hand-drawn ensō around a strict grid of widgets.
+
+## Credits
+
+- The banner and emblem artwork was generated with ChatGPT's image generation, with no text in the image. The name, kanji and tagline were then added as vector text. The prompt and the build scripts are in [`assets/src`](assets/src), so the images can be rebuilt.
+- The screenshots are real renders of the dropdown.
 
 ## License
 

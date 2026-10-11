@@ -1,11 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.1
 
 - Replace the generic puzzle-piece icon with a theme-aware vector emblem matching the project artwork
-
 - Keep saved layout contents, including private inline plugin settings, out of process arguments during restore; read them through stdin instead
 - Complete the screenshot gallery and refresh panel, layout and marketplace preview images
+- Simplify the README and move artwork provenance and font details to the asset build notes
 
 ## 0.2.0
 

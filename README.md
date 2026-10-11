@@ -178,12 +178,8 @@ The row and move logic is in [`Layout.js`](Layout.js), the dropdown is [`Deck.qm
 
 The kanji and the brush circle on the banner are the idea in one picture: the calm, hand-drawn ensō around a strict grid of plugins.
 
-## Credits
-
-- The banner and emblem artwork was generated with ChatGPT's image generation, with no text in the image. The name, kanji and tagline were then added as vector text. The prompt and the build scripts are in [`assets/src`](assets/src), so the images can be rebuilt. I have not checked ChatGPT's terms for the generated images beyond what OpenAI publishes; the files are included on that basis.
-- The banner and preview are typeset in Noto Serif CJK JP, JetBrains Mono (Nerd Font build) and Geist, all under the SIL Open Font License. The fonts are used to render the images and are not bundled.
-- The screenshots are real renders of the dropdown.
-
 ## License
 
 [MIT](LICENSE)
+
+Artwork provenance and build notes are in [`assets/src`](assets/src/README.md).

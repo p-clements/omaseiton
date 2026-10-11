@@ -733,9 +733,9 @@ Item {
                     if (delegateRoot.isLayout) {
                       if (m.note) return m.note
                       var when = root.stamp(m.savedAt)
-                      return (when ? when + " · " : "") + m.widgets + " widgets"
+                      return (when ? when + " · " : "") + m.widgets + " plugins"
                     }
-                    var note = m.isSelf ? "this widget" : (m.firstParty ? "built-in" : "plugin")
+                    var note = m.isSelf ? "this plugin" : (m.firstParty ? "built-in" : "plugin")
                     if (m.clonedFrom) note += " · clone of " + m.clonedFrom
                     return m.id + " · " + note
                   }

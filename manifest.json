@@ -7,7 +7,7 @@
   "license": "MIT",
   "homepage": "https://github.com/p-clements/omaseiton",
   "repository": "https://github.com/p-clements/omaseiton",
-  "description": "Everything in its place on your Omarchy bar: see every widget by lane, reorder, move, toggle, and save or restore whole layouts.",
+  "description": "Everything in its place on your Omarchy bar: see every plugin by lane, reorder, move, toggle, and save or restore whole layouts.",
   "keywords": ["bar", "plugins", "manager", "layout", "tidy", "seiton", "整頓"],
   "kinds": ["bar-widget"],
   "entryPoints": {
@@ -15,7 +15,7 @@
   },
   "barWidget": {
     "displayName": "Omaseiton",
-    "description": "Manage your bar widgets and plugins from one dropdown",
+    "description": "Manage your bar plugins from one dropdown",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

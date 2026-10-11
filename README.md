@@ -3,12 +3,12 @@
 </p>
 
 <p align="center">
-  <b>See every widget on your Omarchy bar, grouped by lane. Reorder, move and toggle them from one dropdown, and save and restore whole layouts.</b>
+  <b>See every plugin on your Omarchy bar, grouped by lane. Reorder, move and toggle them from one dropdown, and save and restore whole layouts.</b>
 </p>
 
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
-  <img alt="omarchy plugin" src="https://img.shields.io/badge/omarchy-bar--widget-7aa2f7">
+  <img alt="omarchy plugin" src="https://img.shields.io/badge/omarchy-bar--plugin-7aa2f7">
 </p>
 
 ---
@@ -21,10 +21,10 @@
 
 ## What it is
 
-Omaseiton is a bar widget for the [Omarchy](https://omarchy.org) shell. Click its icon and a dropdown lists every widget on your bar, split into **Left**, **Center** and **Right** lanes, followed by the bar widgets you have installed but switched off.
+Omaseiton is a bar plugin for the [Omarchy](https://omarchy.org) shell. Click its icon and a dropdown lists every plugin on your bar, split into **Left**, **Center** and **Right** lanes, followed by the bar plugins you have installed but switched off.
 
 <p align="center">
-  <img src="docs/panel.png" alt="The Omaseiton dropdown: widgets in Left and Center lanes, each row with L C R lane buttons and a toggle" width="372">
+  <img src="docs/panel.png" alt="The Omaseiton dropdown: plugins in Left and Center lanes, each row with L C R lane buttons and a toggle" width="372">
   <img src="docs/layouts.png" alt="The Layouts node: Omarchy default and My layout, each with Save and Restore buttons" width="372">
 </p>
 
@@ -34,12 +34,12 @@ More screenshots are tracked in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 
 |                      |                                                                                                                                                                                                                                                                                                                                     |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A small tree**     | Each lane is a foldable node with its widgets nested underneath, in bar order, with the plugin id and whether it is built in, a plugin or a clone.                                                                                                                                                                                  |
-| **Change lane**      | Every row has **L C R** buttons (**S C E** on a vertical bar). The current lane is filled in; click another to move the widget there.                                                                                                                                                                                               |
+| **A small tree**     | Each lane is a foldable node with its plugins nested underneath, in bar order, with the plugin id and whether it is built in, a plugin or a clone.                                                                                                                                                                                  |
+| **Change lane**      | Every row has **L C R** buttons (**S C E** on a vertical bar). The current lane is filled in; click another to move the plugin there.                                                                                                                                                                                               |
 | **Reorder**          | Highlight a row and use its **▲ ▼** buttons (or `Shift+↑` `Shift+↓`) to move it earlier or later inside its lane.                                                                                                                                                                                                                   |
-| **Toggle**           | Switch a widget off the bar, or switch an available one on. In the Available list the **L C R** buttons switch it on in that lane.                                                                                                                                                                                                  |
+| **Toggle**           | Switch a plugin off the bar, or switch an available one on. In the Available list the **L C R** buttons switch it on in that lane.                                                                                                                                                                                                  |
 | **Native look**      | Built from Omarchy's own UI components and theme colours, so it follows `omarchy theme set` automatically.                                                                                                                                                                                                                          |
-| **Keyboard first**   | Arrows move the highlight, `Shift`+arrows move the widget, `1` `2` `3` pick a lane, `Space` toggles. See [Keys](#keys).                                                                                                                                                                                                             |
+| **Keyboard first**   | Arrows move the highlight, `Shift`+arrows move the plugin, `1` `2` `3` pick a lane, `Space` toggles. See [Keys](#keys).                                                                                                                                                                                                             |
 | **Layouts**          | Save your bar as **My layout** and bring it back later, or return to the stock **Omarchy default**. A snapshot is taken automatically before every restore, and before **My layout** is overwritten, so any of them can be undone. What a restore changes is spelled out in [What it touches](#what-it-touches).                    |
 | **Plugin shortcuts** | Browse the [Omarchy marketplace](https://plugins.omarchy.org), add a plugin from a git URL, or check your git plugins for updates. **Update** shows a short summary per plugin (new commits and a one-line stat, not a raw diff), asks, and then applies exactly the commit it showed you. See [Updating](#updating-other-plugins). |
 
@@ -60,29 +60,29 @@ omarchy plugin remove io.github.p-clements.omaseiton
 rm -rf ~/.config/omaseiton ~/.local/state/omaseiton
 ```
 
-The second line deletes your saved layouts and the small state files (see [Files it writes](#files-it-writes)). Skip it if you want to keep the layouts. Removing the plugin does not touch your bar's other widgets.
+The second line deletes your saved layouts and the small state files (see [Files it writes](#files-it-writes)). Skip it if you want to keep the layouts. Removing the plugin does not touch your bar's other plugins.
 
 ## Keys
 
-The rule: **plain keys move the highlight, `Shift` moves the widget.** Inside a lane, up and down is the order; left and right is the lane.
+The rule: **plain keys move the highlight, `Shift` moves the plugin.** Inside a lane, up and down is the order; left and right is the lane.
 
 | Key                              | Action                                                                                                |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `↑` `↓` / `j` `k`                | Move the highlight                                                                                    |
 | `Home` `End` / `g` `G`           | First / last row                                                                                      |
 | `[` `]`                          | Jump to the previous / next lane                                                                      |
-| `←` / `h`                        | On a widget: jump up to its lane. On a lane: fold it                                                  |
+| `←` / `h`                        | On a plugin: jump up to its lane. On a lane: fold it                                                  |
 | `→` / `l`                        | On a lane: unfold it, or step into it if it is already open                                           |
-| `Shift+↑` `Shift+↓` (or `K` `J`) | Move the widget earlier / later in its lane                                                           |
-| `Shift+←` `Shift+→` (or `H` `L`) | Move the widget to the previous / next lane                                                           |
-| `1` `2` `3`                      | Send the widget to the left / center / right lane. On an **Available** row, switch it on in that lane |
-| `Space`                          | Switch the widget off. On an Available row, switch it on                                              |
-| `x`                              | Switch the widget off                                                                                 |
+| `Shift+↑` `Shift+↓` (or `K` `J`) | Move the plugin earlier / later in its lane                                                           |
+| `Shift+←` `Shift+→` (or `H` `L`) | Move the plugin to the previous / next lane                                                           |
+| `1` `2` `3`                      | Send the plugin to the left / center / right lane. On an **Available** row, switch it on in that lane |
+| `Space`                          | Switch the plugin off. On an Available row, switch it on                                              |
+| `x`                              | Switch the plugin off                                                                                 |
 | `Enter`                          | On a lane: fold or unfold. On Available: switch on. On a layout: restore it (press twice)             |
 | `s`                              | On **My layout**: save the current bar                                                                |
 | `Esc`                            | Cancel a pending restore, otherwise close                                                             |
 
-The top of the dropdown always shows the keys that work everywhere, and a second line shows what the keys do for the row you are on. Letters are read from the key itself, so CapsLock does not change what they do, and a held-down key never repeats a change (switching off widget after widget, or confirming a restore that should take two deliberate presses).
+The top of the dropdown always shows the keys that work everywhere, and a second line shows what the keys do for the row you are on. Letters are read from the key itself, so CapsLock does not change what they do, and a held-down key never repeats a change (switching off plugin after plugin, or confirming a restore that should take two deliberate presses).
 
 On a vertical bar the same keys apply: lanes are Start / Center / End, and the lane buttons read **S C E**.
 
@@ -92,10 +92,10 @@ Omaseiton runs as you, unsandboxed, like every Omarchy shell plugin (see [SECURI
 
 ### Changing your bar
 
-1. **Moves, lane changes and on/off** go through the running shell, using the same calls `omarchy bar move` and `omarchy plugin enable` / `disable` use: `omarchy-shell shell moveBarWidget`, `enablePlugin` and `setPluginEnabled`. The shell then saves `shell.json` itself, as it does for those commands. Switching a widget off removes its entry from the layout, including inline settings such as the clock format. Omarchy does this, not Omaseiton, and switching it back on gives you the widget's defaults.
+1. **Moves, lane changes and on/off** go through the running shell, using the same calls `omarchy bar move` and `omarchy plugin enable` / `disable` use: `omarchy-shell shell moveBarWidget`, `enablePlugin` and `setPluginEnabled`. The shell then saves `shell.json` itself, as it does for those commands. Switching a plugin off removes its entry from the layout, including inline settings such as the clock format. Omarchy does this, not Omaseiton, and switching it back on gives you the plugin's defaults.
 2. **Restoring a layout** (My layout, an automatic snapshot, or **Omarchy default**) is done by [`scripts/layout.sh`](scripts/layout.sh), and only after you press Restore twice. It replaces exactly these four settings in `~/.config/omarchy/shell.json`, and nothing else:
 
-   - `bar.layout` (the lanes and their widgets, with each widget's inline settings)
+   - `bar.layout` (the lanes and their plugins, with each plugin's inline settings)
    - `bar.position`
    - `bar.transparent`
    - `bar.centerAnchor`
@@ -104,7 +104,7 @@ Omaseiton runs as you, unsandboxed, like every Omarchy shell plugin (see [SECURI
 
 How the file is written: atomically, in the file's own directory, with its existing permissions. If `shell.json` is a symlink (a dotfiles repository, say), the file it points to is replaced and the link is left alone. Keys are written in sorted order, as Omarchy's own `omarchy bar` commands do. If anything fails, the write does not happen and the bar is left as it was.
 
-**Omarchy default** works out the stock bar by running `omarchy bar defaults` in a throwaway home directory (so optional widgets for installed services are included), then applies it with the same single write as any other restore. Your widgets that are not on the stock bar come off, which is why the snapshot taken first matters.
+**Omarchy default** works out the stock bar by running `omarchy bar defaults` in a throwaway home directory (so optional plugins for installed services are included), then applies it with the same single write as any other restore. Your plugins that are not on the stock bar come off, which is why the snapshot taken first matters.
 
 Before any restore, the current bar is saved as an automatic snapshot (the newest five are kept, and a snapshot is only pruned after the restore succeeded). Saving **My layout** keeps the version it replaces as an automatic snapshot too. If the snapshot cannot be written, nothing is restored.
 
@@ -157,7 +157,7 @@ The row and move logic is in [`Layout.js`](Layout.js), the dropdown is [`Deck.qm
 ## Roadmap
 
 - Named layouts beyond "My layout"
-- Per-widget settings from each plugin's declared schema
+- Per-plugin settings from each plugin's declared schema
 - Clone, open folder and remove actions per row
 - "Update available" badges
 - Drag and drop (Omarchy's bar already supports dragging icons directly)
@@ -171,7 +171,7 @@ The row and move logic is in [`Layout.js`](Layout.js), the dropdown is [`Deck.qm
 | **Meaning** | tidying up; putting in order; organizing                                                                                                                                         |
 | **In 5S**   | The second of five workplace principles: 整理 _seiri_ (sort), **整頓 _seiton_ (set in order)**, 清掃 _seisō_ (shine), 清潔 _seiketsu_ (standardize), しつけ _shitsuke_ (sustain) |
 
-The kanji and the brush circle on the banner are the idea in one picture: the calm, hand-drawn ensō around a strict grid of widgets.
+The kanji and the brush circle on the banner are the idea in one picture: the calm, hand-drawn ensō around a strict grid of plugins.
 
 ## Credits
 

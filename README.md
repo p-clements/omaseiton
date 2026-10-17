@@ -11,6 +11,24 @@
   <img alt="omarchy plugin" src="https://img.shields.io/badge/omarchy-bar--plugin-7aa2f7">
 </p>
 
+<p align="center">
+  <img src="docs/demo.gif" alt="Omaseiton in action: reorder with Shift+arrows, move a plugin between lanes, save My layout, make a mess of the bar, then restore it or return to the Omarchy default" width="372">
+</p>
+
+<p align="center"><sub>Reorder, switch off, save a layout, make a mess, restore. Recorded with the real dropdown code against a simulated bar, so no real bar was touched.</sub></p>
+
+## Why
+
+Omarchy already lets you drag plugins around the bar. Omaseiton adds what dragging can't:
+
+- **Undo for your whole bar.** Save it as **My layout**, experiment freely, and put it back with two key presses. Every restore, and every save over **My layout**, takes an automatic snapshot first, so even a restore can be undone.
+- **Everything in one place.** Every plugin by lane, plus the ones you have switched off, in one dropdown you can drive entirely from the keyboard.
+- **Safer plugin updates.** A short summary of what changed in each git plugin, a yes/no, and then exactly the commit you were shown, with validation and rollback.
+
+```bash
+omarchy plugin add https://github.com/p-clements/omaseiton.git --enable
+```
+
 ---
 
 > ### 整頓 · _seiton_ (せいとん)
